@@ -17,26 +17,19 @@ class NearestNeighborClassifier(object):
         self.data = np.array([])
         self.labels = np.array([])
 
-    def train(self, train_batches):
+    def train(self, data, labels):
         """
             Train classifier on batches array.
 
             Parameters:
             -------
-            train_batches : list[dictionary]
-                It's list of batches, each batch - dictionary.
-                Each dictionary must contains data and labels.
+            data : np.array
+                Data, where each row has it's label in labels.
+            labels : np.array
+                Labels for data.
         """
-        for batch in train_batches:
-            batch_data = batch['data']
-            batch_labels = batch['labels']
-
-            if self.data.shape != batch_data.shape:
-                self.data = batch_data
-                self.labels = np.array(batch_labels)
-            else:
-                self.data = np.concatenate((self.data, batch_data), axis=0)
-                self.labels = np.concatenate((self.labels, batch_labels), axis=0)
+        self.data = data
+        self.labels = labels
 
     def predict(self, test, k=1):
         """
@@ -67,12 +60,12 @@ class NearestNeighborClassifier(object):
 
 
 if __name__ == "__main__":
-    TRAIN_BATCHES, TEST_BATCH = cr.read_ciraf_10("content/ciraf/cifar-10-batches-py", 1)
+    TRAIN_BATCHES, TEST_BATCH = cr.read_ciraf_10("content/ciraf/cifar-10-batches-py")
 
     classifier = NearestNeighborClassifier()
 
     start = time.clock()
-    classifier.train(TRAIN_BATCHES)
+    classifier.train(TRAIN_BATCHES[0]['data'], np.array(TRAIN_BATCHES[0]['labels']))
     end = time.clock()
     print 'Training time = ', end - start
 
