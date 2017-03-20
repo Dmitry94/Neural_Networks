@@ -5,24 +5,40 @@
 import time
 import numpy as np
 import ciraf as cr
+import utils as ut
+
+def svm_loss(data, labels, weights, margin):
+    """
+        Calculates linear SVM loss.
+
+        Parameters:
+        -------
+        data : np.array, where each row is a sample
+        labels : np.array, where each element is a label for a sample
+        weights : np.array, weight matrix for cost function
+        margin : np.array, margin for loss calcs
+
+        Returns:
+            Mean margin.
+    """
+    response = weights.dot(data.T).T
+    margins = np.maximum(0, response - response[labels] + margin)
+    margins[labels] = 0
+
+    return np.sum(margins) / data.shape[0]
+
 
 class SVMLinearClassifier(object):
     """
         Linear SVM classifier.
     """
-    def __init__(self, reg_lambda=0.5, margin=1):
+    def __init__(self, learning_rate=0.01, reg_lambda=0.01, margin=1):
         self.reg_lambda = reg_lambda
         self.margin = margin
+        self.learning_rate = learning_rate
         self.weights = np.array([])
 
-    def __calc_loss(self, data, labels, weights):
-        response = weights.dot(data.T).T
-        margins = np.maximum(0, response - response[labels] + self.margin)
-        margins[labels] = 0
-
-        return np.sum(margins) / data.shape[0]
-
-    def train(self, data, labels, max_iters=100):
+    def train(self, data, labels, max_iters=1000):
         """
             Train SVM linear classifier.
 
@@ -34,12 +50,20 @@ class SVMLinearClassifier(object):
         """
         bestloss = float("inf")
         classes_count = len(np.unique(labels))
-        for num in xrange(max_iters):
-            cur_weights = np.random.random_sample((classes_count, data.shape[1]))
-            loss = self.__calc_loss(data, labels, cur_weights)
-            if loss < bestloss:
-                bestloss = loss
-                self.weights = cur_weights
+        bath_size = 256
+        self.weights = np.random.random_sample((classes_count, data.shape[1]))
+
+        for _ in xrange(max_iters):
+            rand_idxs = [np.random.randint(0, data.shape[0]) for i in xrange(bath_size)]
+            data_batch = data[rand_idxs]
+            labels_batch = labels[rand_idxs]
+
+            reg_loss = np.sum(self.weights ** 2) * self.reg_lambda
+
+            gradient = ut.calculate_gradient(lambda x: reg_loss +
+                                             svm_loss(data_batch, labels_batch, x, self.margin),
+                                             self.weights)
+            self.weights += -self.learning_rate * gradient
 
     def predict(self, data):
         """
