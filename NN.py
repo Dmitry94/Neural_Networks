@@ -39,7 +39,7 @@ class NearestNeighborClassifier(object):
                 self.data = np.concatenate((self.data, batch_data), axis=0)
                 self.labels = np.concatenate((self.labels, batch_labels), axis=0)
 
-    def predict(self, test):
+    def predict(self, test, k=1):
         """
             Assign labels for new data.
 
@@ -55,12 +55,14 @@ class NearestNeighborClassifier(object):
         for i in xrange(samples_count):
             # L1
             distances = np.sum(np.abs(self.data - test[i, :]), axis=1)
-
             #L2
             #distances = np.sqrt(np.sum((self.data - test[i, :]) ** 2, axis=1))
 
-            min_index = np.argmin(distances)
-            predictions[i] = self.labels[min_index]
+            top_mins = np.argpartition(distances, k)
+            unique, counts = np.unique(self.labels[top_mins[0: k]], return_counts=True)
+            label = np.argmax(counts)
+
+            predictions[i] = unique[label]
 
         return predictions
 
@@ -76,7 +78,7 @@ if __name__ == "__main__":
     print 'Training time = ', end - start
 
     start = time.clock()
-    predictions = classifier.predict(TEST_BATCH['data'])
+    predictions = classifier.predict(TEST_BATCH['data'], 5)
     end = time.clock()
     print 'Prediction time = ', end - start
 
