@@ -4,7 +4,6 @@
 
 import time
 import numpy as np
-import utils as ut
 import ciraf as cr
 
 class NearestNeighborClassifier(object):
