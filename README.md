@@ -3,5 +3,5 @@ Practical applications for Stanford's course: [CS231n](http://cs231n.github.io/)
 
 ## Conrtains:
 * Nearest Neighbor Classifier
-* Linear Classification: SVM
-* Linear Classification: Softmax
+* Linear Classificator: SVM
+* Linear Classificator: Softmax
