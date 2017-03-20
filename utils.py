@@ -2,12 +2,11 @@
     Some usefull functions/classes for all networks.
 """
 
-import math
 import numpy as np
 
-def calculate_gradient(F, x):
+def compute_gradient(F, x):
     """
-        Calculates gradient F in x.
+        Computing gradient F in x using approximate formula.
 
         Parameters
         -------
@@ -18,7 +17,7 @@ def calculate_gradient(F, x):
             Gradient vector
     """
     grad = np.zeros(x.shape)
-    h = 0.000001
+    h = 0.00001
 
     it = np.nditer(x, flags=['multi_index'], op_flags=['readwrite'])
     while not it.finished:
