@@ -53,7 +53,12 @@ class NearestNeighborClassifier(object):
         predictions = np.zeros(samples_count, dtype=self.labels.dtype)
 
         for i in xrange(samples_count):
-            distances = ut.calc_l1(test[i, :], self.data)
+            # L1
+            distances = np.sum(np.abs(self.data - test[i, :]), axis=1)
+
+            #L2
+            #distances = np.sqrt(np.sum((self.data - test[i, :]) ** 2, axis=1))
+
             min_index = np.argmin(distances)
             predictions[i] = self.labels[min_index]
 
