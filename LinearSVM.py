@@ -7,7 +7,7 @@ import numpy as np
 import ciraf as cr
 import utils as ut
 
-def svm_loss(data, labels, weights, margin):
+def svm_loss(data, labels, weights, margin, reg_lambda):
     """
         Calculates linear SVM loss.
 
@@ -16,16 +16,55 @@ def svm_loss(data, labels, weights, margin):
         data : np.array, where each row is a sample
         labels : np.array, where each element is a label for a sample
         weights : np.array, weight matrix for cost function
-        margin : np.array, margin for loss calcs
+        margin : int, margin for loss calcs
+        reg_lambda : float, regularization koef
 
         Returns:
-            Mean margin.
+            Loss = svm_loss + reg_loss.
     """
     response = weights.dot(data.T).T
-    margins = np.maximum(0, response - response[labels] + margin)
-    margins[labels] = 0
+    row_idx = np.arange(labels.shape[0])
 
-    return np.sum(margins) / data.shape[0]
+    labels_resps = response[row_idx, labels].reshape(labels.shape[0], 1)
+    margins = response - labels_resps + margin
+    margins[row_idx, labels] = 0
+    margins = np.amax(margins, axis=1)
+
+    reg_loss = np.sum(weights ** 2) * reg_lambda
+    return np.sum(margins) / data.shape[0] + reg_loss
+
+def svm_loss_gradient(data, labels, weights, margin, reg_lambda):
+    """
+        Analitic calculation of the svm_loss gradient.
+
+        Parameters:
+        -------
+        data : np.array, where each row is a sample
+        labels : np.array, where each element is a label for a sample
+        weights : np.array, weight matrix for cost function
+        margin : int, margin for loss calcs
+        reg_lambda : float, regularization koef
+
+        Returns:
+            Gradient vector
+    """
+    response = weights.dot(data.T).T
+    row_idx = np.arange(labels.shape[0])
+
+    labels_resps = response[row_idx, labels].reshape(labels.shape[0], 1)
+    margins = response - labels_resps + margin
+    margins[row_idx, labels] = 0
+
+    gradient_koefs = np.zeros(margins.shape)
+    mask = margins > 0
+    gradient_koefs[mask] = 1
+    gradient_koefs[row_idx, labels] = -1 * np.sum(gradient_koefs, axis=1)
+
+    reg_loss = np.sum(weights ** 2) * reg_lambda
+    reg_derivative = reg_loss - weights[labels] ** 2 + 2 * weights[labels]
+    reg_loss = np.sum(reg_derivative.T, axis=1) * reg_lambda
+
+    return gradient_koefs.T.dot(data) / data.shape[0] + reg_loss
 
 
 class SVMLinearClassifier(object):
@@ -48,7 +87,8 @@ class SVMLinearClassifier(object):
             labels: np.array, where each element is sample labels
             max_iters: max count of iterations for training
         """
-        bestloss = float("inf")
+        ones = np.ones((data.shape[0], 1))
+        data = np.hstack((data, ones))
         classes_count = len(np.unique(labels))
         bath_size = 256
         self.weights = np.random.random_sample((classes_count, data.shape[1]))
@@ -58,11 +98,14 @@ class SVMLinearClassifier(object):
             data_batch = data[rand_idxs]
             labels_batch = labels[rand_idxs]
 
-            reg_loss = np.sum(self.weights ** 2) * self.reg_lambda
+            # Numerical
+            # gradient = ut.compute_gradient(lambda x: svm_loss(data_batch, labels_batch, x, self.margin, self.reg_lambda),
+            #                                self.weights)
 
-            gradient = ut.calculate_gradient(lambda x: reg_loss +
-                                             svm_loss(data_batch, labels_batch, x, self.margin),
-                                             self.weights)
+            # Analitic
+            gradient = svm_loss_gradient(data_batch, labels_batch,
+                                         self.weights, self.margin, self.reg_lambda)
+
             self.weights += -self.learning_rate * gradient
 
     def predict(self, data):
@@ -76,6 +119,8 @@ class SVMLinearClassifier(object):
             Returns:
             labels : np.array, where each element it's a label for sample from data.
         """
+        ones = np.ones((data.shape[0], 1))
+        data = np.hstack((data, ones))
         response = self.weights.dot(data.T).T
         response = np.argmax(response, axis=1)
 
@@ -101,4 +146,4 @@ if __name__ == "__main__":
     print 'Prediction time = ', end - start
 
     accuracy = np.mean(predictions == TEST_BATCH['labels'])
-    print 'NN Accuracy = %f' % accuracy
+    print 'SVM Accuracy = %f' % accuracy
