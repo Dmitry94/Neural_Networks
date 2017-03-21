@@ -60,8 +60,7 @@ def svm_loss_gradient(data, labels, weights, margin, reg_lambda):
     gradient_koefs[mask] = 1
     gradient_koefs[row_idx, labels] = -1 * np.sum(gradient_koefs, axis=1)
 
-    reg_loss = np.sum(weights ** 2) * reg_lambda
-    reg_derivative = reg_loss - weights[labels] ** 2 + 2 * weights[labels]
+    reg_derivative = 2 * weights[labels]
     reg_loss = np.sum(reg_derivative.T, axis=1) * reg_lambda
 
     return gradient_koefs.T.dot(data) / data.shape[0] + reg_loss
@@ -71,10 +70,11 @@ class SVMLinearClassifier(object):
     """
         Linear SVM classifier.
     """
-    def __init__(self, learning_rate=0.01, reg_lambda=0.01, margin=1):
+    def __init__(self, learning_rate=0.01, reg_lambda=0.01, batch_size=1024, margin=1):
         self.reg_lambda = reg_lambda
         self.margin = margin
         self.learning_rate = learning_rate
+        self.batch_size = batch_size
         self.weights = np.array([])
 
     def train(self, data, labels, max_iters=1000):
@@ -87,15 +87,15 @@ class SVMLinearClassifier(object):
             labels: np.array, where each element is sample labels
             max_iters: max count of iterations for training
         """
-        ones = np.ones((data.shape[0], 1))
-        data = np.hstack((data, ones))
         classes_count = len(np.unique(labels))
-        bath_size = 256
-        self.weights = np.random.random_sample((classes_count, data.shape[1]))
+        self.weights = np.random.random_sample((classes_count, data.shape[1] + 1))
 
         for _ in xrange(max_iters):
-            rand_idxs = [np.random.randint(0, data.shape[0]) for i in xrange(bath_size)]
+            rand_idxs = [np.random.randint(0, data.shape[0]) for i in xrange(self.batch_size)]
+
+            ones = np.ones((self.batch_size, 1))
             data_batch = data[rand_idxs]
+            data_batch = np.hstack((data_batch, ones))
             labels_batch = labels[rand_idxs]
 
             # Numerical
@@ -131,9 +131,18 @@ class SVMLinearClassifier(object):
 
 
 if __name__ == "__main__":
-    TRAIN_BATCHES, TEST_BATCH = cr.read_ciraf_10("content/ciraf/cifar-10-batches-py")
+    TRAIN_BATCHES, TEST_BATCH = cr.read_ciraf_10("content/ciraf/cifar-10-batches-py", 5)
 
-    classifier = SVMLinearClassifier()
+    classifier = SVMLinearClassifier(learning_rate=0.01, batch_size=50000, reg_lambda=0.1)
+
+    train_data = TRAIN_BATCHES[0]['data']
+    train_labels = np.array(TRAIN_BATCHES[0]['labels'])
+    for i in xrange(1, len(TRAIN_BATCHES)):
+        cur_data = TRAIN_BATCHES[i]['data']
+        cur_labels = np.array(TRAIN_BATCHES[i]['labels'])
+
+        train_data = np.concatenate((train_data, cur_data))
+        train_labels = np.concatenate((train_labels, cur_labels))
 
     start = time.clock()
     classifier.train(TRAIN_BATCHES[0]['data'], np.array(TRAIN_BATCHES[0]['labels']))
