@@ -7,6 +7,8 @@ import numpy as np
 import ciraf as cr
 import utils as ut
 
+from sklearn import svm
+
 def svm_loss(data, labels, weights, margin, reg_lambda):
     """
         Calculates linear SVM loss.
@@ -131,9 +133,9 @@ class SVMLinearClassifier(object):
 
 
 if __name__ == "__main__":
-    TRAIN_BATCHES, TEST_BATCH = cr.read_ciraf_10("content/ciraf/cifar-10-batches-py", 5)
+    TRAIN_BATCHES, TEST_BATCH = cr.read_ciraf_10("content/ciraf/cifar-10-batches-py", 1)
 
-    classifier = SVMLinearClassifier(learning_rate=0.01, batch_size=50000, reg_lambda=0.1)
+    classifier = SVMLinearClassifier(learning_rate=0.01, batch_size=1024, reg_lambda=0.01)
 
     train_data = TRAIN_BATCHES[0]['data']
     train_labels = np.array(TRAIN_BATCHES[0]['labels'])
@@ -156,3 +158,9 @@ if __name__ == "__main__":
 
     accuracy = np.mean(predictions == TEST_BATCH['labels'])
     print 'SVM Accuracy = %f' % accuracy
+
+    # clf = svm.LinearSVC()
+    # clf.fit(train_data, train_labels)
+    # pr = clf.predict(TEST_BATCH['data']) 
+    # acc = np.mean(pr == TEST_BATCH['labels'])
+    # print 'Sklearn acc = ', acc
