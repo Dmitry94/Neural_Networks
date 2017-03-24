@@ -89,9 +89,10 @@ class SVMLinearClassifier(object):
         self.weights = np.random.random_sample((classes_count, data.shape[1] + 1))
 
         for _ in xrange(max_iters):
-            rand_idxs = [np.random.randint(0, data.shape[0]) for i in xrange(self.batch_size)]
+            cur_batch_size = min(self.batch_size, data.shape[0])
+            rand_idxs = [np.random.randint(0, data.shape[0]) for i in xrange(cur_batch_size)]
 
-            ones = np.ones((self.batch_size, 1))
+            ones = np.ones((cur_batch_size, 1))
             data_batch = data[rand_idxs]
             data_batch = np.hstack((data_batch, ones))
             labels_batch = labels[rand_idxs]
