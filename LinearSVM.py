@@ -2,12 +2,8 @@
     Linear SVM Classifier demonstration.
  """
 
-import time
 import numpy as np
-import ciraf as cr
 import utils as ut
-
-from sklearn import svm
 
 def svm_loss(data, labels, weights, margin, reg_lambda):
     """
@@ -101,7 +97,8 @@ class SVMLinearClassifier(object):
             labels_batch = labels[rand_idxs]
 
             # Numerical
-            # gradient = ut.compute_gradient(lambda x: svm_loss(data_batch, labels_batch, x, self.margin, self.reg_lambda),
+            # gradient = ut.compute_gradient(lambda x: svm_loss(data_batch, labels_batch, x,
+            #                                                   self.margin, self.reg_lambda),
             #                                self.weights)
 
             # Analitic
@@ -127,40 +124,3 @@ class SVMLinearClassifier(object):
         response = np.argmax(response, axis=1)
 
         return response
-
-
-
-
-
-if __name__ == "__main__":
-    TRAIN_BATCHES, TEST_BATCH = cr.read_ciraf_10("content/ciraf/cifar-10-batches-py", 1)
-
-    classifier = SVMLinearClassifier(learning_rate=0.01, batch_size=1024, reg_lambda=0.01)
-
-    train_data = TRAIN_BATCHES[0]['data']
-    train_labels = np.array(TRAIN_BATCHES[0]['labels'])
-    for i in xrange(1, len(TRAIN_BATCHES)):
-        cur_data = TRAIN_BATCHES[i]['data']
-        cur_labels = np.array(TRAIN_BATCHES[i]['labels'])
-
-        train_data = np.concatenate((train_data, cur_data))
-        train_labels = np.concatenate((train_labels, cur_labels))
-
-    start = time.clock()
-    classifier.train(TRAIN_BATCHES[0]['data'], np.array(TRAIN_BATCHES[0]['labels']))
-    end = time.clock()
-    print 'Training time = ', end - start
-
-    start = time.clock()
-    predictions = classifier.predict(TEST_BATCH['data'])
-    end = time.clock()
-    print 'Prediction time = ', end - start
-
-    accuracy = np.mean(predictions == TEST_BATCH['labels'])
-    print 'SVM Accuracy = %f' % accuracy
-
-    # clf = svm.LinearSVC()
-    # clf.fit(train_data, train_labels)
-    # pr = clf.predict(TEST_BATCH['data']) 
-    # acc = np.mean(pr == TEST_BATCH['labels'])
-    # print 'Sklearn acc = ', acc
