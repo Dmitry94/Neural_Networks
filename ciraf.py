@@ -1,6 +1,7 @@
 """
     Module with functions for reading CIRAF data.
 """
+import numpy as np
 
 def read_ciraf_file(file_name):
     """
@@ -41,3 +42,4 @@ def read_ciraf_10(files_path, count=-1):
         train_batches = train_batches[0: count]
 
     return train_batches, test_batch
+

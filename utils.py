@@ -35,3 +35,22 @@ def compute_gradient(F, x):
         it.iternext()
 
     return grad
+
+def generate_spiral_data(size, classes):
+    """
+        Generates spiral data in 2D.
+        size : int
+            Count of points for each class.
+        classes : int
+            Count of classes.
+    """
+    D = 2
+    X = np.zeros((size * classes, D))
+    Y = np.zeros(size * classes, dtype='uint8')
+    for j in xrange(classes):
+        ix = range(size * j, size * (j + 1))
+        r = np.linspace(0.0, 1.0, size)
+        t = np.linspace(j * 4, (j + 1) * 4, size) + np.random.randn(size) * 0.2
+        X[ix] = np.c_[r * np.sin(t), r * np.cos(t)]
+        Y[ix] = j
+    return X, Y
