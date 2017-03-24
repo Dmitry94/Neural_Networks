@@ -1,5 +1,5 @@
 """
-    Linear SVM Classifier demonstration.
+    Linear SVM Classifier.
  """
 
 import numpy as np
