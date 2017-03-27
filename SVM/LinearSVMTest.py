@@ -3,6 +3,9 @@
 
 # In[1]:
 
+import sys
+sys.path.append('..')
+
 import time
 import numpy as np
 import ciraf as cr
@@ -14,14 +17,14 @@ from sklearn import svm as skSVM
 
 # In[2]:
 
-BATCH_SIZE = 512
+BATCH_SIZE = 32
 LEARNING_RATE = 0.01
 REG_LAMBDA = 0.01
 
 
 # In[3]:
 
-train_batches, test_batch = cr.read_ciraf_10("content/ciraf/cifar-10-batches-py")
+train_batches, test_batch = cr.read_ciraf_10("../content/ciraf/cifar-10-batches-py")
 
 
 # In[4]:

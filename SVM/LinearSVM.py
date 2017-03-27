@@ -61,7 +61,7 @@ def svm_loss_gradient(data, labels, weights, margin, reg_lambda):
     reg_derivative = 2 * weights[labels]
     reg_loss = np.sum(reg_derivative.T, axis=1) * reg_lambda
 
-    return gradient_koefs.T.dot(data) / data.shape[0] + reg_loss
+    return gradient_koefs.T.dot(data) / data.shape[0] + reg_lambda * weights
 
 
 class SVMLinearClassifier(object):
