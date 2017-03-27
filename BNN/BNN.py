@@ -58,7 +58,7 @@ class BNN(object):
 
             # Backprop on hidden layers
             for j in xrange(len(self.weights) - 1, 0, -1):
-                cur_dw = np.dot(layers_outs[j].T, dlast) + self.reg_lambda * self.weights[j]
+                cur_dw = np.dot(layers_outs[j].T, dlast) + self.reg_lambda * np.sum(self.weights[j])
                 dlast = np.dot(dlast, self.weights[j].T)
                 dlast[dlast <= 0] = 0
 
@@ -97,7 +97,7 @@ class BNN(object):
         for i in xrange(1, layers_count):
             w_cur = k * np.random.randn(self.hl_sizes[i - 1], self.hl_sizes[i])
             self.weights.append(w_cur)
-        w_end = k * np.random.randn(self.hl_sizes[layers_count - 1], classes_count)
+        w_end = k * np.random.randn(self.hl_sizes[-1], classes_count)
         self.weights.append(w_end)
 
     def _forward_pass(self, data):
