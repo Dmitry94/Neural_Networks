@@ -1,6 +1,8 @@
 """
     Linear Softmax Classifier.
  """
+import sys
+sys.path.append('..')
 
 import numpy as np
 import utils as ut
@@ -20,13 +22,15 @@ def cross_entropy_loss(data, labels, weights, reg_lambda):
         Returns:
             Loss = cross_entropy_loss + reg_loss.
     """
-    response = weights.dot(data.T).T
-    maxs = np.amax(response, axis=1).reshape(response.shape[0], 1)
+    response = np.dot(data, weights)
+    maxs = np.amax(response, axis=1, keepdims=True)
     response -= maxs
-    response = np.exp(response) / np.sum(np.exp(response))
+    response = np.exp(response)
+    response = response / np.sum(response, axis=1, keepdims=True)
+    corect_responses = -np.log(response[range(data.shape[0]), labels])
 
-    reg_loss = np.sum(weights ** 2) * reg_lambda
-    return np.sum(response) / data.shape[0] + reg_loss
+    reg_loss = 0.5 * reg_lambda * np.sum(weights ** 2)
+    return np.sum(corect_responses) / data.shape[0] + reg_loss
 
 def cross_entropy_loss_gradient(data, labels, weights, reg_lambda):
     """
@@ -43,14 +47,17 @@ def cross_entropy_loss_gradient(data, labels, weights, reg_lambda):
         Returns:
             Gradient vector
     """
-    response = weights.dot(data.T).T
-    maxs = np.amax(response, axis=1).reshape(response.shape[0], 1)
+    response = np.dot(data, weights)
+    maxs = np.amax(response, axis=1, keepdims=True)
     response -= maxs
-    response = np.exp(response) / np.sum(np.exp(response))
-    response[range(data.shape[0]), labels] -= 1
+    response = np.exp(response)
+    response = response / np.sum(response, axis=1, keepdims=True)
 
-    reg_loss = 2 * np.sum(weights) * reg_lambda
-    return response.T.dot(data) / data.shape[0] + reg_loss
+    response[range(data.shape[0]), labels] -= 1
+    response /= data.shape[0]
+
+    reg_loss = reg_lambda * np.sum(weights)
+    return np.dot(data.T, response) + reg_loss
 
 
 class SoftmaxClassifier(object):
@@ -74,11 +81,11 @@ class SoftmaxClassifier(object):
             max_iters: max count of iterations for training
         """
         classes_count = len(np.unique(labels))
-        self.weights = np.random.random_sample((classes_count, data.shape[1] + 1))
+        self.weights = 0.01 * np.random.randn(data.shape[1] + 1, classes_count)
 
-        for _ in xrange(max_iters):
+        for i in xrange(max_iters):
             cur_batch_size = min(self.batch_size, data.shape[0])
-            rand_idxs = [np.random.randint(0, data.shape[0]) for i in xrange(cur_batch_size)]
+            rand_idxs = [np.random.randint(0, data.shape[0]) for _ in xrange(cur_batch_size)]
 
             ones = np.ones((cur_batch_size, 1))
             data_batch = data[rand_idxs]
@@ -94,7 +101,6 @@ class SoftmaxClassifier(object):
             # Analitic
             gradient = cross_entropy_loss_gradient(data_batch, labels_batch,
                                                    self.weights, self.reg_lambda)
-
             self.weights += -self.learning_rate * gradient
 
     def predict(self, data):
@@ -110,7 +116,7 @@ class SoftmaxClassifier(object):
         """
         ones = np.ones((data.shape[0], 1))
         data = np.hstack((data, ones))
-        response = self.weights.dot(data.T).T
+        response = np.dot(data, self.weights)
         response = np.argmax(response, axis=1)
 
         return response

@@ -1,6 +1,11 @@
 """
     Softmax test
+
+    DOESN'T WORK, OVERFLOW
 """
+
+import sys
+sys.path.append('..')
 
 import time
 import numpy as np
@@ -10,10 +15,10 @@ import Softmax as sfmx
 from sklearn import svm as skSVM
 
 
-BATCH_SIZE = 512
+BATCH_SIZE = 64
 LEARNING_RATE = 0.01
 REG_LAMBDA = 0.01
-train_batches, test_batch = cr.read_ciraf_10("content/ciraf/cifar-10-batches-py")
+train_batches, test_batch = cr.read_ciraf_10("../content/ciraf/cifar-10-batches-py")
 classifier = sfmx.SoftmaxClassifier(learning_rate=LEARNING_RATE, batch_size=BATCH_SIZE, reg_lambda=REG_LAMBDA)
 
 
@@ -33,7 +38,7 @@ for i in xrange(1, len(train_batches)):
 start = time.clock()
 classifier.train(train_batches[0]['data'], np.array(train_batches[0]['labels']))
 end = time.clock()
-print 'My SVM Training time = ', end - start
+print 'My Softmax Training time = ', end - start
 
 
 
@@ -41,10 +46,10 @@ print 'My SVM Training time = ', end - start
 start = time.clock()
 predictions = classifier.predict(test_batch['data'])
 end = time.clock()
-print 'My SVM Predicting time = ', end - start
+print 'My Softmax Predicting time = ', end - start
 
 accuracy = np.mean(predictions == test_batch['labels'])
-print 'My SVM Accuracy = %f' % accuracy
+print 'My Softmax Accuracy = %f' % accuracy
 
 
 
