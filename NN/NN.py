@@ -2,6 +2,9 @@
     Nearest Neighbor Classifier demonstration.
 """
 
+import sys
+sys.path.append('..')
+
 import time
 import numpy as np
 import ciraf as cr
@@ -60,7 +63,7 @@ class NearestNeighborClassifier(object):
 
 
 if __name__ == "__main__":
-    TRAIN_BATCHES, TEST_BATCH = cr.read_ciraf_10("content/ciraf/cifar-10-batches-py")
+    TRAIN_BATCHES, TEST_BATCH = cr.read_ciraf_10("../content/ciraf/cifar-10-batches-py")
 
     classifier = NearestNeighborClassifier()
 
