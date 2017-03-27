@@ -24,6 +24,9 @@ class BNN(object):
             labels : array, where each row - label
         """
         # Init
+        ones = np.ones((data.shape[0], 1))
+        data = np.hstack((data, ones))
+
         num_examples = data.shape[0]
         sensors_count = data.shape[1]
         classes_count = len(np.unique(labels))
@@ -32,13 +35,7 @@ class BNN(object):
         for i in xrange(max_iters):
             # Forward pass
             layers_outs = self._forward_pass(data)
-            scores = layers_outs[-1]
-
-            # Calculate prababilities
-            maxs = np.amax(scores, axis=1, keepdims=True)
-            scores -= maxs
-            probs = np.exp(scores)
-            probs = probs / np.sum(probs, axis=1, keepdims=True)
+            probs = layers_outs[-1]
 
             # Calculate and print loss
             if print_loss and i % 1000 == 0:
@@ -51,12 +48,45 @@ class BNN(object):
                 loss = data_loss + reg_loss
                 print "On iteration %d: loss is %f" % (i, loss)
 
-            # Compute the gradient on scores
+            # Compute the gradient on probs, out layer
             dscores = probs
             dscores[range(num_examples), labels] -= 1
             dscores /= num_examples
 
-        return 0
+            # Gradient on previous layer
+            dlast = dscores
+
+            # Backprop on hidden layers
+            for j in xrange(len(self.weights) - 1, 0, -1):
+                cur_dw = np.dot(layers_outs[j].T, dlast) + self.reg_lambda * self.weights[j]
+                dlast = np.dot(dlast, self.weights[j].T)
+                dlast[dlast <= 0] = 0
+
+                self.weights[j] += -self.learning_rate * cur_dw
+
+            # Backprop on IN-layer
+            in_dw = np.dot(data.T, dlast) + self.reg_lambda * self.weights[0]
+            self.weights[0] += -self.learning_rate * in_dw
+
+    def predict(self, data):
+        """
+            Inference net for predicting label for each data row.
+
+            Parameters:
+            -------
+            data : array, where each row is a sample
+
+            Returns:
+            array of labels
+        """
+        ones = np.ones((data.shape[0], 1))
+        data = np.hstack((data, ones))
+
+        layers_outs = self._forward_pass(data)
+        probs = layers_outs[-1]
+        labels = np.argmax(probs, axis=1)
+
+        return labels
 
     def _init_weights(self, sensors_count, classes_count):
         layers_count = len(self.hl_sizes)
@@ -81,6 +111,11 @@ class BNN(object):
 
         # Out from out layer
         end_out = np.dot(cur_out, self.weights[-1])
-        outs.append(end_out)
+        # Calculate prababilities
+        maxs = np.amax(end_out, axis=1, keepdims=True)
+        end_out -= maxs
+        probs = np.exp(end_out)
+        probs = probs / np.sum(probs, axis=1, keepdims=True)
+        outs.append(probs)
 
         return outs
