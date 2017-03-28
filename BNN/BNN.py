@@ -8,12 +8,19 @@ class BNN(object):
     """
         Neural network class with backprop.
     """
-    def __init__(self, hidden_layers_sizes, learning_rate=1e-0, reg_lambda=1e-3):
+    def __init__(self, hidden_layers_sizes, learning_rate=1e-0, reg_lambda=1e-3,
+                 dropout_p=0.5, adam_eps=1e-8, adam_b1=0.99, adam_b2=0.999):
         self.hl_sizes = hidden_layers_sizes
         self.learning_rate = learning_rate
         self.reg_lambda = reg_lambda
         self.weights = np.array([])
         self.biases = np.array([])
+
+        self.dropout_p = dropout_p
+
+        self.adam_eps = adam_eps
+        self.adam_b1 = adam_b1
+        self.adam_b2 = adam_b2
 
     def train(self, data, labels, print_loss=False, max_iters=10000):
         """
@@ -113,7 +120,16 @@ class BNN(object):
 
         # Out from hidden layers
         for i in xrange(len(self.weights) - 1):
+            # Dropconnect (WORSE)
+            # cur_mask = (np.random.rand(*self.weights[i].shape) < self.dropout_p) / self.dropout_p
+            # cur_weights = self.weights[i] * cur_mask
+
             cur_out = np.maximum(0, np.dot(outs[i], self.weights[i]) + self.biases[i])
+
+            # # Dropout (WORSE!)
+            # cur_mask = (np.random.rand(*cur_out.shape) < self.dropout_p) / self.dropout_p
+            # cur_out *= cur_mask
+
             outs.append(cur_out)
 
         # Out from out layer
