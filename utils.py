@@ -44,6 +44,8 @@ def generate_spiral_data(size, classes):
         classes : int
             Count of classes.
     """
+    np.random.seed(0)
+
     D = 2
     X = np.zeros((size * classes, D))
     Y = np.zeros(size * classes, dtype='uint8')
