@@ -8,9 +8,42 @@ import numpy as np
 from scipy import special
 from sklearn.base import ClassifierMixin, BaseEstimator
 from sklearn.datasets import make_classification
+from sklearn import preprocessing
 
 # Используйте scipy.special для вычисления численно неустойчивых функций
 # https://docs.scipy.org/doc/scipy/reference/special.html#module-scipy.special
+
+def compute_gradient(F, x):
+    """
+        Computing gradient F in x using approximate formula.
+
+        Parameters
+        -------
+            F : functuion from Rn to R
+            x : point if Rn
+
+        Returns
+            Gradient vector
+    """
+    grad = np.zeros(x.shape)
+    h = 0.00001
+
+    it = np.nditer(x, flags=['multi_index'], op_flags=['readwrite'])
+    while not it.finished:
+        ix = it.multi_index
+        old_value = x[ix]
+
+        x[ix] = old_value - h
+        fxh_m = F(x)
+
+        x[ix] = old_value + h
+        fxh_p = F(x)
+
+        x[ix] = old_value
+        grad[ix] = (fxh_p - fxh_m) / (2 * h)
+        it.iternext()
+
+    return grad
 
 def lossf(w, X, y, l1, l2):
     """
@@ -24,8 +57,9 @@ def lossf(w, X, y, l1, l2):
     :return: float, значение функции потерь
     """
     powers = -1 * y * np.dot(X, w)
-    exps = np.exp(powers)
-    losses = np.log(1 + exps)
+
+    # array of log(e^0 + e^powers[i])
+    losses = np.logaddexp(0, powers)
 
     r1 = l1 * np.sum(np.abs(w))
     r2 = l2 * np.sum(w ** 2)
@@ -45,9 +79,25 @@ def gradf(w, X, y, l1, l2):
     """
     powers = -1 * y * np.dot(X, w)
     exps = np.exp(powers)
-    value = np.sum(exps / (1 + exps) * y)
-    gradw = value * np.sum(X, axis=0)
+    fst_part = exps / (1 + exps)
+    snd_part = X * -y.reshape(y.shape[0], 1)
+    gradw = np.dot(fst_part, snd_part) + l1 + 2 * l2 * w
     return gradw
+
+def grads_error(num_grad, analitic_grad):
+    """
+        Calculates error for two gradients.
+
+        :param num_grad: numpy.array, dtype=np.float,
+                         numerical calculated gradient
+        :param analitic_grad: numpy.array, dtype=np.float,
+                              analitically calculated gradient
+    """
+    diff_norm = np.linalg.norm((num_grad - analitic_grad), ord=1)
+    num_norm = np.linalg.norm(num_grad, ord=1)
+    analitic_norm = np.linalg.norm(analitic_grad, ord=1)
+
+    return diff_norm / max(num_norm, analitic_norm)
 
 class LR(ClassifierMixin, BaseEstimator):
     def __init__(self, lr=1, l1=1e-4, l2=1e-4, num_iter=1000, verbose=0):
@@ -62,10 +112,25 @@ class LR(ClassifierMixin, BaseEstimator):
         """
         self.l1 = l1
         self.l2 = l2
-        self.w = None
         self.lr = lr
         self.verbose = verbose
         self.num_iter = num_iter
+        self.mean = 0
+
+    def preprocess(self, X):
+        """
+            Preprocess data.
+
+            :param X: numpy.array (N, M), dtype = np.float
+            :return: X
+        """
+        X -= self.mean
+
+        # X /= np.std(X, axis = 0)
+        min_max_scaler = preprocessing.MinMaxScaler(feature_range=(-1, 1))
+        X = min_max_scaler.fit_transform(X)
+
+        return X
 
     def fit(self, X, y):
         """
@@ -80,7 +145,23 @@ class LR(ClassifierMixin, BaseEstimator):
         :return: self
         """
         n, d = X.shape
+        self.mean = np.mean(X, axis=0)
         self.w = 0.01 * np.random.randn(d)
+        X = self.preprocess(X)
+
+        for i in xrange(self.num_iter):
+            loss = lossf(self.w, X, y, self.l1, self.l2)
+
+            gradient = gradf(self.w, X, y, self.l1, self.l2)
+
+            if self.verbose and i % 100 == 0:
+                print 'Loss = %f' % loss
+                gradient_n = compute_gradient(lambda weights: lossf(weights, X, y, self.l1, self.l2),
+                                              self.w)
+                err = grads_error(gradient_n, gradient)
+                print 'Error = %f' % err
+
+            self.w += -self.lr * gradient
 
         return self
 
@@ -92,11 +173,13 @@ class LR(ClassifierMixin, BaseEstimator):
         :param X: numpy.array размера  (N, M), dtype = np.float
         :return: numpy.array размера  (N,), dtype = np.float
         """
-        # Вычислите вероятности принадлежности каждого 
-        # объекта из X к положительному классу, используйте
-        # эту функцию для реализации LR.predict
-        
-        return probs
+        X = self.preprocess(X)
+        responses = np.dot(X, self.w)
+
+        min_max_scaler = preprocessing.MinMaxScaler(feature_range=(0, 1))
+        predicts = min_max_scaler.fit_transform(responses)
+
+        return predicts
 
     def predict(self, X):
         """
@@ -107,16 +190,25 @@ class LR(ClassifierMixin, BaseEstimator):
         :return:  numpy.array размера  (N,), dtype = np.int
         """
         # Вычислите предсказания для каждого объекта из X
-        
-        return predicts 
+        X = self.preprocess(X)
+        predicts = self.predict_proba(X)
+
+        mask_1 = predicts > 0.5
+        predicts[:] = -1
+        predicts[mask_1] = 1
+
+        return predicts
 
 def test_work():
     print "Start test"
     X, y = make_classification(n_features=100, n_samples=1000)
     y = 2 * (y - 0.5)
 
+    X_test, y_test = make_classification(n_features=100, n_samples=1000)
+    y_test = 2 * (y - 0.5)
+
     try:
-        clf = LR(lr=1, l1=1e-4, l2=1e-4, num_iter=1000, verbose=0)
+        clf = LR(lr=1e-3, l1=1e-4, l2=1e-4, num_iter=1000, verbose=1)
     except Exception:
         assert False, "Создание модели завершается с ошибкой"
         return
@@ -126,6 +218,10 @@ def test_work():
     except Exception:
         assert False, "Обучение модели завершается с ошибкой"
         return
+
+    predicts = clf.predict(X_test)
+    accuracy = np.mean(y_test == predicts)
+    print 'Accuracy after training = %f' % accuracy
 
     assert isinstance(lossf(clf.w, X, y, 1e-3, 1e-3), float), "Функция потерь должна быть скалярной и иметь тип np.float"
     assert gradf(clf.w, X, y, 1e-3, 1e-3).shape == (100,), "Размерность градиента должна совпадать с числом параметров"
