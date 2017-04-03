@@ -176,8 +176,10 @@ class LR(ClassifierMixin, BaseEstimator):
         X = self.preprocess(X)
         responses = np.dot(X, self.w)
 
-        min_max_scaler = preprocessing.MinMaxScaler(feature_range=(0, 1))
-        predicts = min_max_scaler.fit_transform(responses)
+        y = 1
+        powers = -1 * y * responses
+        predicts = np.logaddexp(0, powers)
+        predicts[predicts > 1.0] = 1.0
 
         return predicts
 
