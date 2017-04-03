@@ -45,3 +45,15 @@ fix_w = tf.assign(W, [-1.0])
 fix_b = tf.assign(b, [1.0])
 session.run([fix_w, fix_b])
 print '6: ', session.run(loss, {x: [1, 2, 3], y:[0, -1, -2]})
+
+
+# We knew that this values are the best
+# But ML task is to auto find it
+# TF provides some optimazers for this
+lr = 1e-2
+opt = tf.train.GradientDescentOptimizer(lr)
+train = opt.minimize(loss)
+session.run(init)
+for _ in xrange(1000):
+    session.run(train, {x: [1, 2, 3], y: [0, -1, -2]})
+print '7: ', session.run([W, b])
