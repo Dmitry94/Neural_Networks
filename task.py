@@ -9,6 +9,8 @@ from scipy import special
 from sklearn.base import ClassifierMixin, BaseEstimator
 from sklearn.datasets import make_classification
 from sklearn import preprocessing
+from sklearn import linear_model
+from sklearn.metrics import f1_score
 
 # Используйте scipy.special для вычисления численно неустойчивых функций
 # https://docs.scipy.org/doc/scipy/reference/special.html#module-scipy.special
@@ -77,11 +79,8 @@ def gradf(w, X, y, l1, l2):
     :param l2: float, l2 коэффициент регуляризатора 
     :return: numpy.array размера  (M,), dtype = np.float, градиент функции потерь d lossf / dw
     """
-    powers = -1 * y * np.dot(X, w)
-    exps = np.exp(powers)
-    fst_part = exps / (1 + exps)
-    snd_part = X * -y.reshape(y.shape[0], 1)
-    gradw = np.dot(fst_part, snd_part) + l1 + 2 * l2 * w
+    log_loss = np.dot(-y * special.expit(-y * X.dot(w)), X)
+    gradw = log_loss + l1 * np.sign(w) + 2 * l2 * w
     return gradw
 
 def grads_error(num_grad, analitic_grad):
@@ -175,11 +174,7 @@ class LR(ClassifierMixin, BaseEstimator):
         """
         X = self.preprocess(X)
         responses = np.dot(X, self.w)
-
-        y = 1
-        powers = -1 * y * responses
-        predicts = np.logaddexp(0, powers)
-        predicts[predicts > 1.0] = 1.0
+        predicts = special.expit(responses)
 
         return predicts
 
@@ -223,7 +218,17 @@ def test_work():
 
     predicts = clf.predict(X_test)
     accuracy = np.mean(y_test == predicts)
+    f1 = f1_score(y_test, predicts)
     print 'Accuracy after training = %f' % accuracy
+    print 'F1-Score = %f' % f1
+
+    logreg = linear_model.LogisticRegression(C=1e-4, max_iter=1000)
+    logreg.fit(X, y)
+    sklrn_prd = logreg.predict(X_test)
+    sklrn_acc = np.mean(y_test == sklrn_prd)
+    sklrn_f1_score = f1_score(y_test, sklrn_prd)
+    print 'SkLearn logistic regressuion accuracy = %f' % sklrn_acc
+    print 'SkLearn F1-Score = %f' % sklrn_f1_score
 
     assert isinstance(lossf(clf.w, X, y, 1e-3, 1e-3), float), "Функция потерь должна быть скалярной и иметь тип np.float"
     assert gradf(clf.w, X, y, 1e-3, 1e-3).shape == (100,), "Размерность градиента должна совпадать с числом параметров"
