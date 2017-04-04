@@ -4,7 +4,6 @@
 """
 
 import math
-import time
 import argparse
 import os.path
 import sys
@@ -18,11 +17,12 @@ IMAGE_PIXELS = IMAGE_SIZE ** 2
 FLAGS = None
 
 def variable_summaries(var):
-  """Attach a lot of summaries to a Tensor (for TensorBoard visualization)."""
-  with tf.name_scope('summaries'):
+    """
+        Attach a lot of summaries to a Tensor (for TensorBoard visualization).
+    """
     mean = tf.reduce_mean(var)
     stddev = tf.sqrt(tf.reduce_mean(tf.square(var - mean)))
-    
+
     tf.summary.scalar('mean', mean)
     tf.summary.scalar('stddev', stddev)
     tf.summary.scalar('max', tf.reduce_max(var))
@@ -95,11 +95,13 @@ def loss(logits, labels):
         Calculate cross-entropy loss.
     """
     labels = tf.to_int64(labels)
-    with tf.name_scope('cross_entropy'):
-        cr_en = tf.nn.softmax_cross_entropy_with_logits(
-            labels=labels, logits=logits, name='xentropy')
-    with tf.name_scope('total'):
-        cross_entropy = tf.reduce_mean(cr_en, name='xentropy_mean')
+    cr_en = tf.nn.softmax_cross_entropy_with_logits(
+        labels=labels, logits=logits, name='xentropy')
+    cross_entropy = tf.reduce_mean(cr_en, name='xentropy_mean')
+
+    with tf.name_scope('Loss'):
+        tf.summary.scalar('value', cross_entropy)
+
     return cross_entropy
 
 
@@ -109,8 +111,7 @@ def train(loss_, learning_rate):
     """
     optimizer = tf.train.GradientDescentOptimizer(learning_rate)
     global_step = tf.Variable(0, name='global_step', trainable=False)
-    with tf.name_scope('train'):
-        train_op = optimizer.minimize(loss_, global_step)
+    train_op = optimizer.minimize(loss_, global_step)
 
     return train_op
 
@@ -119,13 +120,13 @@ def evaluate(labels, logits):
         Calculates count of true-predicted.
     """
     predictions = tf.nn.softmax(logits)
-    with tf.name_scope('accuracy'):
-        with tf.name_scope('correct_prediction'):
-            correct_prediction = tf.equal(tf.argmax(predictions, 1), tf.argmax(labels, 1))
-        with tf.name_scope('accuracy'):
-            accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
+    correct_prediction = tf.equal(tf.argmax(predictions, 1), tf.argmax(labels, 1))
+    correct_count = tf.reduce_sum(tf.cast(correct_prediction, tf.int32))
 
-    return tf.reduce_sum(tf.cast(correct_prediction, tf.int32))
+    with tf.name_scope('Predicting'):
+        tf.summary.scalar('hits', correct_count)
+
+    return correct_count
 
 
 
@@ -158,7 +159,7 @@ def do_eval(session, eval_tensor, im_pl, lb_pl, dataset):
     true_count = 0  # Counts the number of correct predictions.
     steps_per_epoch = dataset.num_examples // FLAGS.batch_size
     num_examples = steps_per_epoch * FLAGS.batch_size
-    for step in xrange(steps_per_epoch):
+    for _ in xrange(steps_per_epoch):
         feed_dict = fill_dict(dataset, im_pl, lb_pl)
         true_count += session.run(eval_tensor, feed_dict=feed_dict)
     precision = float(true_count) / num_examples
@@ -190,14 +191,12 @@ def run_training():
         session.run(init)
 
         for step in xrange(FLAGS.max_steps):
-            start_time = time.time()
             feed_dict = fill_dict(mnist.train, im_pl, lb_pl)
 
             # Every tensor return value. train_op -> None
             _, loss_val, s = session.run([train_op, loss_, summary], feed_dict=feed_dict)
             summ_writer.add_summary(s, step)
 
-            duration = time.time() - start_time
 
             # Every 100th step write log
             if step % 100 == 0:
