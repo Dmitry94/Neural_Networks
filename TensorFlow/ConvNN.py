@@ -37,7 +37,7 @@ def max_pool_2x2(x):
     # ksize[0] == ksize[3]
     # ksize[1], ksize[2] - width, height
     return tf.nn.max_pool(x, ksize=[1, 2, 2, 1],
-                          strides=[1, 1, 1, 1], padding='SAME')
+                          strides=[1, 2, 2, 1], padding='SAME')
 
 
 session = tf.InteractiveSession()
@@ -60,7 +60,7 @@ b_conv1 = init_biases([32])
 W_conv2 = init_weights([5, 5, 32, 64])
 b_conv2 = init_biases([64])
 
-W_fc1 = init_weights([7 * 7 * 64 * 1024])
+W_fc1 = init_weights([7 * 7 * 64, 1024])
 b_fc1 = init_biases([1024])
 
 W_fc2 = init_weights([1024, 10])
@@ -70,10 +70,10 @@ b_fc2 = init_biases([10])
 conv_out1 = tf.nn.relu(conv2d(x_image, W_conv1) + b_conv1)
 pool1 = max_pool_2x2(conv_out1)
 
-conv_out2 = tf.nn.relu(conv2d(conv_out1, W_conv2) + b_conv2)
+conv_out2 = tf.nn.relu(conv2d(pool1, W_conv2) + b_conv2)
 pool2 = max_pool_2x2(conv_out2)
 
-tf.reshape(pool2, [-1, 7 * 7 * 64])
+pool2 = tf.reshape(pool2, [-1, 7 * 7 * 64])
 fc_out1 = tf.nn.relu(tf.matmul(pool2, W_fc1) + b_fc1)
 
 # Dropout prob
@@ -83,11 +83,14 @@ fc_out1 = tf.nn.dropout(fc_out1, keep_prob)
 predicts = tf.matmul(fc_out1, W_fc2) + b_fc2
 
 
+# Define Train
 cross_entropy = tf.reduce_mean(
     tf.nn.softmax_cross_entropy_with_logits(labels=y, logits=predicts))
 train_step = tf.train.AdamOptimizer(1e-4).minimize(cross_entropy)
 correct_prediction = tf.equal(tf.argmax(predicts, 1), tf.argmax(y, 1))
 accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
+
+# Run
 session.run(tf.global_variables_initializer())
 for i in range(20000):
   batch = mnist.train.next_batch(50)
@@ -95,7 +98,7 @@ for i in range(20000):
     train_accuracy = accuracy.eval(feed_dict={
         x:batch[0], y: batch[1], keep_prob: 1.0})
     print("step %d, training accuracy %g"%(i, train_accuracy))
-  train_step.run(feed_dict={x: batch[0], y_: batch[1], keep_prob: 0.5})
+  train_step.run(feed_dict={x: batch[0], y: batch[1], keep_prob: 0.5})
 
 print("test accuracy %g" % accuracy.eval(feed_dict={
     x: mnist.test.images, y: mnist.test.labels, keep_prob: 1.0}))
