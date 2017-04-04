@@ -17,6 +17,19 @@ IMAGE_SIZE = 28
 IMAGE_PIXELS = IMAGE_SIZE ** 2
 FLAGS = None
 
+def variable_summaries(var):
+  """Attach a lot of summaries to a Tensor (for TensorBoard visualization)."""
+  with tf.name_scope('summaries'):
+    mean = tf.reduce_mean(var)
+    stddev = tf.sqrt(tf.reduce_mean(tf.square(var - mean)))
+    
+    tf.summary.scalar('mean', mean)
+    tf.summary.scalar('stddev', stddev)
+    tf.summary.scalar('max', tf.reduce_max(var))
+    tf.summary.scalar('min', tf.reduce_min(var))
+    tf.summary.histogram('histogram', var)
+
+
 def inference(images, hl1, hl2):
     """
         Forward pass for images.
@@ -36,6 +49,10 @@ def inference(images, hl1, hl2):
         )
         h1_out = tf.nn.relu(tf.matmul(images, weights) + biases)
 
+        variable_summaries(weights)
+        variable_summaries(biases)
+        tf.summary.histogram('h1_act', h1_out)
+
     # Second hidden layer
     with tf.name_scope('second_hidden_layer'):
         weights = tf.Variable(
@@ -48,6 +65,10 @@ def inference(images, hl1, hl2):
             name='biases'
         )
         h2_out = tf.nn.relu(tf.matmul(h1_out, weights) + biases)
+
+        variable_summaries(weights)
+        variable_summaries(biases)
+        tf.summary.histogram('h2_act', h2_out)
 
     # Last out layer
     with tf.name_scope('softmax'):
@@ -62,6 +83,10 @@ def inference(images, hl1, hl2):
         )
         logits = tf.matmul(h2_out, weights) + biases
 
+        variable_summaries(weights)
+        variable_summaries(biases)
+        tf.summary.histogram('logits', logits)
+
     return logits
 
 
@@ -70,21 +95,22 @@ def loss(logits, labels):
         Calculate cross-entropy loss.
     """
     labels = tf.to_int64(labels)
-    cr_en = tf.nn.softmax_cross_entropy_with_logits(
-        labels=labels, logits=logits, name='xentropy')
-    return tf.reduce_mean(cr_en, name='xentropy_mean')
+    with tf.name_scope('cross_entropy'):
+        cr_en = tf.nn.softmax_cross_entropy_with_logits(
+            labels=labels, logits=logits, name='xentropy')
+    with tf.name_scope('total'):
+        cross_entropy = tf.reduce_mean(cr_en, name='xentropy_mean')
+    return cross_entropy
 
 
 def train(loss_, learning_rate):
     """
         Train model via loss gd.
     """
-
-    # Add scalar summary for snaphot loss
-    tf.summary.scalar('loss', loss_)
     optimizer = tf.train.GradientDescentOptimizer(learning_rate)
     global_step = tf.Variable(0, name='global_step', trainable=False)
-    train_op = optimizer.minimize(loss_, global_step)
+    with tf.name_scope('train'):
+        train_op = optimizer.minimize(loss_, global_step)
 
     return train_op
 
@@ -93,8 +119,14 @@ def evaluate(labels, logits):
         Calculates count of true-predicted.
     """
     predictions = tf.nn.softmax(logits)
-    correct_prediction = tf.equal(tf.argmax(predictions, 1), tf.argmax(labels, 1))
+    with tf.name_scope('accuracy'):
+        with tf.name_scope('correct_prediction'):
+            correct_prediction = tf.equal(tf.argmax(predictions, 1), tf.argmax(labels, 1))
+        with tf.name_scope('accuracy'):
+            accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
+
     return tf.reduce_sum(tf.cast(correct_prediction, tf.int32))
+
 
 
 def placeholder_in(batch_size):
@@ -162,7 +194,8 @@ def run_training():
             feed_dict = fill_dict(mnist.train, im_pl, lb_pl)
 
             # Every tensor return value. train_op -> None
-            _, loss_val = session.run([train_op, loss_], feed_dict=feed_dict)
+            _, loss_val, s = session.run([train_op, loss_, summary], feed_dict=feed_dict)
+            summ_writer.add_summary(s, step)
 
             duration = time.time() - start_time
 
