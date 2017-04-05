@@ -66,6 +66,8 @@ def _tensor_summary(tensor):
     """
     tensor_name = tensor.op.name
     tf.summary.histogram(tensor_name, tensor)
+
+    # Tensor sparsiry, i.e. zeros_count / all
     tf.summary.scalar(tensor_name + '/sparsity',
                       tf.nn.zero_fraction(tensor))
 
@@ -83,6 +85,8 @@ def _get_variable_on_cpu(name, shape, initializer):
         -------
         variable on cpu
     """
+
+    # Prefer this, because can be scaleble for multi GPU
     with tf.device('/cpu:0'):
         var = tf.get_variable(name, shape, tf.float32, initializer)
 
@@ -106,6 +110,7 @@ def _get_variable_on_cpu_with_reg(name, shape, stddev, rl):
                                                 dtype=tf.float32))
 
     # Calculate reg penalty and add it to the graph collection
+    # When we will calculate loss, we will get it too.
     if rl is not None:
         reg_penalty = tf.multiply(tf.nn.l2_loss(var), rl, name='reg_loss')
         tf.add_to_collection('losses', reg_penalty)
@@ -209,3 +214,26 @@ def inference(images):
         _tensor_summary(fc3_out)
 
     return fc3_out
+
+
+def loss(labels, logits):
+    """
+        Calculates loss.
+
+        Parameters:
+        -------
+        labels: true labels for images
+        logits: inference out
+
+        Returns:
+        -------
+        Total loss
+    """
+    labels = tf.to_int64(labels)
+    cross_entropy = tf.nn.sparse_softmax_cross_entropy_with_logits(labels=labels,
+                        logits=logits, name='cross_entropy_per_sample')
+    ce_mean = tf.reduce_mean(cross_entropy, name='cross_entropy')
+    tf.add_to_collection('losses', ce_mean)
+
+    # Calculate total loss with weights reg penalty
+    return tf.add_n(tf.get_collection('losses'), name='total_loss')
