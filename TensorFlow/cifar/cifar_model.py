@@ -10,9 +10,6 @@ from __future__ import division
 from __future__ import print_function
 from __future__ import absolute_import
 
-import os
-import re
-import sys
 import cifar_input
 
 import tensorflow as tf
@@ -267,3 +264,36 @@ def train(total_loss, global_step):
         -------
         training op
     """
+    num_batches_per_epoch = TRAIN_SIZE / FLAGS.batch_size
+    lr_decay_steps = NUM_EPOCHS_PER_DECAY * num_batches_per_epoch
+
+    lr = tf.train.exponential_decay(INIT_LR, global_step, lr_decay_steps,
+                                    LR_DECAY_FACTOR, staircase=True)
+    tf.summary.scalar('Learning rate', lr)
+
+    loss_avgs_op = _add_loss_summaries(total_loss)
+    # While loss_avgs_op doesn't calc, context won't begin calc
+    with tf.control_dependencies([loss_avgs_op]):
+        opt = tf.train.GradientDescentOptimizer(lr)
+        grads = opt.compute_gradients(total_loss)
+
+    apply_gradients_op = opt.apply_gradients(grads, global_step)
+
+    # Add in summary histograms for vars and it's grads
+    for var in tf.trainable_variables():
+        tf.summary.histogram(var.op.name + '/histogram', var)
+
+    for var, grad in grads:
+        if grad is not None:
+            tf.summary.histogram(var.op.name +
+                    '/gradients_hist', grad)
+
+    # Calculate moving average for vars
+    variable_avgs = tf.train.ExponentialMovingAverage(MOV_AVG_DECAY,
+                                                      global_step)
+    variable_avgs_op = variable_avgs.apply(tf.trainable_variables())
+
+    with tf.control_dependencies([variable_avgs_op, apply_gradients_op]):
+        train_op = tf.no_op('Train')
+
+    return train_op
