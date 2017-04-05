@@ -51,12 +51,13 @@ def read_ciraf10(filename_queue):
     # File format: label:r1:r2:...:rn:g1:g2:...:gn:b1:b2:...:bn
     reader = tf.FixedLengthRecordReader(record_bytes=record_bytes)
     result.key, raw_data = reader.read(filename_queue)
+    record_bytes = tf.decode_raw(raw_data, tf.uint8)
 
     # Get label from raw data
     # Slice takes from begin_index to end_index
-    result.label = tf.to_int32(tf.slice(raw_data, [0], [label_bytes]))
+    result.label = tf.to_int32(tf.slice(record_bytes, [0], [label_bytes]))
 
-    raw_image = tf.slice(raw_data, [label_bytes], [label_bytes + image_bytes])
+    raw_image = tf.slice(record_bytes, [label_bytes], [image_bytes])
     result.image = tf.reshape(raw_image, [result.depth, result.height, result.width])
     result.image = tf.transpose(result.image, [1, 2, 0])
 
