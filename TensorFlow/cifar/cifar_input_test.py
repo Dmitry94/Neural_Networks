@@ -4,9 +4,9 @@
 
 import os
 import tensorflow as tf
-import ciraf_input
+import cifar_input
 
-class Ciraf10ReadingTest(tf.test.TestCase):
+class Cifar10ReadingTest(tf.test.TestCase):
 
     def _record(self, label, red, green, blue):
         image_size = 32 * 32
@@ -26,14 +26,14 @@ class Ciraf10ReadingTest(tf.test.TestCase):
         content = b"".join([record for record, _ in records])
 
         file_name = os.path.join(self.get_temp_dir(),
-                                 'ciraf_test_data')
+                                 'cifar_test')
         open(file_name, "wb").write(content)
 
         with self.test_session() as session:
             q = tf.FIFOQueue(99, tf.string, shapes=())
             q.enqueue([file_name]).run()
             q.close().run()
-            result = ciraf_input.read_ciraf10(q)
+            result = cifar_input.read_cifar10(q)
 
             for i in xrange(3):
                 key, label, image = session.run([result.key,

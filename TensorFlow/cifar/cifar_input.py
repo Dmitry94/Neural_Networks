@@ -1,5 +1,5 @@
 """
-    Module for reading ciraf data.
+    Module for reading cifar data.
     Uses tensorflow tools for effective reading.
 """
 
@@ -22,7 +22,7 @@ NUM_EXAMPLES_PER_EPOCH_FOR_TRAIN = 50000
 NUM_EXAMPLES_PER_EPOCH_FOR_EVAL = 10000
 
 
-def read_ciraf10(filename_queue):
+def read_cifar10(filename_queue):
     """
         Read one sample from queue.
 
@@ -36,10 +36,10 @@ def read_ciraf10(filename_queue):
             height, width, depth, label, image(uint8),
             key - record number & filename
     """
-    class Ciraf10Record(object):
+    class Cifar10Record(object):
         pass
 
-    result = Ciraf10Record()
+    result = Cifar10Record()
     result.height = 32
     result.width = 32
     result.depth = 3
