@@ -58,9 +58,11 @@ def read_cifar10(filename_queue):
 
     # Get label from raw data
     # Slice takes from begin_index to end_index
-    result.label = tf.to_int32(tf.slice(record_bytes, [0], [label_bytes]))
+    result.label = tf.cast(tf.strided_slice(record_bytes, [0], [label_bytes]),
+                           tf.int32)
 
-    raw_image = tf.slice(record_bytes, [label_bytes], [image_bytes])
+    raw_image = tf.strided_slice(record_bytes, [label_bytes],
+                       [label_bytes + image_bytes])
     result.image = tf.reshape(raw_image, [result.depth, result.height, result.width])
     result.image = tf.transpose(result.image, [1, 2, 0])
 
@@ -96,6 +98,7 @@ def _generate_batch(image, label, min_queue_size,
                             capacity=min_queue_size + 3 * batch_size)
 
     tf.summary.image('Images', images)
+    labels = tf.reshape(labels, [batch_size])
 
     return images, labels
 
