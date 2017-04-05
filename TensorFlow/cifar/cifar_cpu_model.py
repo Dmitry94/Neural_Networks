@@ -237,3 +237,33 @@ def loss(labels, logits):
 
     # Calculate total loss with weights reg penalty
     return tf.add_n(tf.get_collection('losses'), name='total_loss')
+
+
+def _add_loss_summaries(total_loss):
+    """
+        Calculates avg losses and summary them.
+    """
+    losses = tf.get_collection('losses')
+    loss_avgs = tf.train.ExponentialMovingAverage(MOV_AVG_DECAY, name='Avg')
+    loss_avgs_op = loss_avgs.apply(losses + [total_loss])
+
+    for l in losses + [total_loss]:
+        tf.summary.scalar(l.name + '(raw)', l)
+        tf.summary.scalar(l.name, loss_avgs.average(l))
+
+    return loss_avgs_op
+
+
+def train(total_loss, global_step):
+    """
+        Train Ciraf10 model.
+
+        Parameters:
+        -------
+        total_loss: loss for the model
+        global_step: counter for training steps
+
+        Returns:
+        -------
+        training op
+    """
