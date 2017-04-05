@@ -3,6 +3,9 @@
     Uses tensorflow tools for effective reading.
 """
 
+# pylint: disable=C0103
+# pylint: disable=C0330
+
 from __future__ import print_function
 from __future__ import absolute_import
 from __future__ import division

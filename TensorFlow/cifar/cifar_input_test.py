@@ -2,6 +2,10 @@
     Simple test for ciraf_input based on TensorFlow.
 """
 
+# pylint: disable=C0103
+# pylint: disable=C0330
+# pylint: disable=C0111
+
 import os
 import tensorflow as tf
 import cifar_input

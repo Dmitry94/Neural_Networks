@@ -3,6 +3,9 @@
     Contains loss, input_fns, train, inrefence.
 """
 
+# pylint: disable=C0103
+# pylint: disable=C0330
+
 from __future__ import division
 from __future__ import print_function
 from __future__ import absolute_import
@@ -108,4 +111,101 @@ def _get_variable_on_cpu_with_reg(name, shape, stddev, rl):
         tf.add_to_collection('losses', reg_penalty)
 
     return var
-    
+
+
+def inference(images):
+    """
+        Builds cifar10 model.
+
+        Parameters:
+        -------
+        images: input data
+
+        Returns:
+        -------
+        Logits
+    """
+
+    # FIRST CONVOLUTION LAYER
+    with tf.name_scope('conv1') as scope:
+        weights = _get_variable_on_cpu_with_reg('weights',
+                        shape=[5, 5, 3, 64], stddev=5e-2, rl=0.0)
+        biases = _get_variable_on_cpu('biases', shape=[64],
+                        initializer=tf.constant_initializer(0.0))
+
+        conv = tf.nn.conv2d(images, weights,
+                    strides=[1, 1, 1, 1], padding='SAME')
+        conv1_out = tf.nn.bias_add(conv, biases)
+        conv1_out = tf.nn.relu(conv1_out, name=scope.name)
+        _tensor_summary(conv1_out)
+
+    # FIRST POOL LAYER
+    pool1_out = tf.nn.max_pool(conv1_out, ksize=[1, 3, 3, 1],
+                    strides=[1, 2, 2, 1], padding='SAME',
+                    name='pool1')
+
+    # FIRST NORM LAYER
+    norm1_out = tf.nn.lrn(pool1_out, 4, bias=1.0,
+                          alpha=0.001 / 9.0, beta=0.75,
+                          name='norm1')
+
+    # SECOND CONVOLUTION LAYER
+    with tf.name_scope('conv2') as scope:
+        weights = _get_variable_on_cpu_with_reg('weights',
+                        shape=[5, 5, 64, 64], stddev=5e-2, rl=0.0)
+        biases = _get_variable_on_cpu('biases', shape=[64],
+                        initializer=tf.constant_initializer(0.0))
+
+        conv = tf.nn.conv2d(norm1_out, weights,
+                    strides=[1, 1, 1, 1], padding='SAME')
+        conv2_out = tf.nn.bias_add(conv, biases)
+        conv2_out = tf.nn.relu(conv2_out, name=scope.name)
+        _tensor_summary(conv2_out)
+
+    # SECOND NORM LAYER
+    norm2_out = tf.nn.lrn(conv2_out, 4, bias=1.0,
+                          alpha=0.001 / 9.0, beta=0.75,
+                          name='norm2')
+
+    # SECOND POOL LAYER
+    pool2_out = tf.nn.max_pool(norm2_out, ksize=[1, 3, 3, 1],
+                    strides=[1, 2, 2, 1], padding='SAME',
+                    name='pool2')
+
+    # FIRST FULL CONNECTED LAYER
+    with tf.name_scope('fc1') as scope:
+        pool2_out = tf.reshape(pool2_out, [FLAGS.batch_size, -1])
+        dim = pool2_out.get_shape()[1].value
+        weights = _get_variable_on_cpu_with_reg('weights',
+                        shape=[dim, 384], stddev=0.04, rl=0.004)
+        biases = _get_variable_on_cpu('biases', [384],
+                            tf.constant_initializer(0.1))
+
+        fc1_out = tf.nn.relu(tf.matmul(pool2_out, weights) + biases,
+                    name=scope.name)
+        _tensor_summary(fc1_out)
+
+    # SECOND FULL CONNECTED LAYER
+    with tf.name_scope('fc2') as scope:
+        weights = _get_variable_on_cpu_with_reg('weights',
+                        shape=[384, 192], stddev=0.04, rl=0.004)
+        biases = _get_variable_on_cpu('biases', [192],
+                        initializer=tf.constant_initializer(0.1))
+
+        fc2_out = tf.nn.relu(tf.matmul(fc1_out, weights) + biases,
+                    name=scope.name)
+        _tensor_summary(fc2_out)
+
+    # LAST, OUT LAYER
+    with tf.name_scope('softmax-linear') as scope:
+        weights = _get_variable_on_cpu_with_reg('weights',
+                        shape=[192, NUM_CLASSES], stddev=1/192.0,
+                        rl=0.0)
+        biases = _get_variable_on_cpu('biases', [NUM_CLASSES],
+                    initializer=tf.constant_initializer(0.0))
+
+        fc3_out = tf.add(tf.matmul(fc2_out, weights), biases,
+                        name=scope.name)
+        _tensor_summary(fc3_out)
+
+    return fc3_out
