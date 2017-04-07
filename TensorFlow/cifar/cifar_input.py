@@ -54,14 +54,14 @@ def read_cifar10(filename_queue):
     # File format: label:r1:r2:...:rn:g1:g2:...:gn:b1:b2:...:bn
     reader = tf.FixedLengthRecordReader(record_bytes=record_bytes)
     result.key, raw_data = reader.read(filename_queue)
-    record_bytes = tf.decode_raw(raw_data, tf.uint8)
+    record = tf.decode_raw(raw_data, tf.uint8)
 
     # Get label from raw data
     # Slice takes from begin_index to end_index
-    result.label = tf.cast(tf.strided_slice(record_bytes, [0], [label_bytes]),
+    result.label = tf.cast(tf.strided_slice(record, [0], [label_bytes]),
                            tf.int32)
 
-    raw_image = tf.strided_slice(record_bytes, [label_bytes],
+    raw_image = tf.strided_slice(record, [label_bytes],
                        [label_bytes + image_bytes])
     result.image = tf.reshape(raw_image, [result.depth, result.height, result.width])
     result.image = tf.transpose(result.image, [1, 2, 0])
@@ -137,6 +137,9 @@ def get_cifar10_input(data_dir, batch_size, is_test):
                                                          IMAGE_SIZE,
                                                          IMAGE_SIZE)
     float_image = tf.image.per_image_standardization(float_image)
+
+    float_image.set_shape([IMAGE_SIZE, IMAGE_SIZE, 3])
+    records.label.set_shape([1])
 
     min_percent_samples_in_queue = 0.4
     min_queue_size = int(min_percent_samples_in_queue * num_examples_per_epoch)
