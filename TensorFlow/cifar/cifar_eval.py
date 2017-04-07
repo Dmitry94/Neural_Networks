@@ -53,10 +53,7 @@ def eval_once(saver, summary_writer, top_k_op, summary_op):
         coord = tf.train.Coordinator()
         try:
             # Start queue runners
-            threads = []
-            for queuer_runner in tf.get_collection(tf.GraphKeys.QUEUE_RUNNERS):
-                threads.extend(queuer_runner.create_threads(session, coord,
-                                                            daemon=True, start=True))
+            threads = tf.train.start_queue_runners(session, coord)
 
             num_iter = int(math.ceil(FLAGS.num_samples / FLAGS.batch_size))
             true_count = 0
