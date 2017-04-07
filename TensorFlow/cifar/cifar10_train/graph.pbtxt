@@ -182,11 +182,11 @@ node {
             size: 5
           }
         }
-        string_val: "../../content/ciraf/cifar-10-batches-py/data_batch_1"
-        string_val: "../../content/ciraf/cifar-10-batches-py/data_batch_2"
-        string_val: "../../content/ciraf/cifar-10-batches-py/data_batch_3"
-        string_val: "../../content/ciraf/cifar-10-batches-py/data_batch_4"
-        string_val: "../../content/ciraf/cifar-10-batches-py/data_batch_5"
+        string_val: "../../content/ciraf/cifar-10-batches-bin/data_batch_1.bin"
+        string_val: "../../content/ciraf/cifar-10-batches-bin/data_batch_2.bin"
+        string_val: "../../content/ciraf/cifar-10-batches-bin/data_batch_3.bin"
+        string_val: "../../content/ciraf/cifar-10-batches-bin/data_batch_4.bin"
+        string_val: "../../content/ciraf/cifar-10-batches-bin/data_batch_5.bin"
       }
     }
   }
@@ -733,7 +733,7 @@ node {
   }
 }
 node {
-  name: "ones_like/tensor"
+  name: "Slice/begin"
   op: "Const"
   attr {
     key: "_output_shapes"
@@ -769,7 +769,7 @@ node {
   }
 }
 node {
-  name: "ones_like/Shape"
+  name: "Slice/size"
   op: "Const"
   attr {
     key: "_output_shapes"
@@ -805,138 +805,11 @@ node {
   }
 }
 node {
-  name: "ones_like/Const"
-  op: "Const"
-  attr {
-    key: "_output_shapes"
-    value {
-      list {
-        shape {
-        }
-      }
-    }
-  }
-  attr {
-    key: "dtype"
-    value {
-      type: DT_INT32
-    }
-  }
-  attr {
-    key: "value"
-    value {
-      tensor {
-        dtype: DT_INT32
-        tensor_shape {
-        }
-        int_val: 1
-      }
-    }
-  }
-}
-node {
-  name: "ones_like"
-  op: "Fill"
-  input: "ones_like/Shape"
-  input: "ones_like/Const"
-  attr {
-    key: "T"
-    value {
-      type: DT_INT32
-    }
-  }
-  attr {
-    key: "_output_shapes"
-    value {
-      list {
-        shape {
-          dim {
-            size: 1
-          }
-        }
-      }
-    }
-  }
-}
-node {
-  name: "StridedSlice/begin"
-  op: "Const"
-  attr {
-    key: "_output_shapes"
-    value {
-      list {
-        shape {
-          dim {
-            size: 1
-          }
-        }
-      }
-    }
-  }
-  attr {
-    key: "dtype"
-    value {
-      type: DT_INT32
-    }
-  }
-  attr {
-    key: "value"
-    value {
-      tensor {
-        dtype: DT_INT32
-        tensor_shape {
-          dim {
-            size: 1
-          }
-        }
-        int_val: 0
-      }
-    }
-  }
-}
-node {
-  name: "StridedSlice/end"
-  op: "Const"
-  attr {
-    key: "_output_shapes"
-    value {
-      list {
-        shape {
-          dim {
-            size: 1
-          }
-        }
-      }
-    }
-  }
-  attr {
-    key: "dtype"
-    value {
-      type: DT_INT32
-    }
-  }
-  attr {
-    key: "value"
-    value {
-      tensor {
-        dtype: DT_INT32
-        tensor_shape {
-          dim {
-            size: 1
-          }
-        }
-        int_val: 1
-      }
-    }
-  }
-}
-node {
-  name: "StridedSlice"
-  op: "StridedSlice"
+  name: "Slice"
+  op: "Slice"
   input: "DecodeRaw"
-  input: "StridedSlice/begin"
-  input: "StridedSlice/end"
-  input: "ones_like"
+  input: "Slice/begin"
+  input: "Slice/size"
   attr {
     key: "Index"
     value {
@@ -954,46 +827,18 @@ node {
     value {
       list {
         shape {
-          unknown_rank: true
+          dim {
+            size: 1
+          }
         }
       }
-    }
-  }
-  attr {
-    key: "begin_mask"
-    value {
-      i: 0
-    }
-  }
-  attr {
-    key: "ellipsis_mask"
-    value {
-      i: 0
-    }
-  }
-  attr {
-    key: "end_mask"
-    value {
-      i: 0
-    }
-  }
-  attr {
-    key: "new_axis_mask"
-    value {
-      i: 0
-    }
-  }
-  attr {
-    key: "shrink_axis_mask"
-    value {
-      i: 0
     }
   }
 }
 node {
   name: "Cast"
   op: "Cast"
-  input: "StridedSlice"
+  input: "Slice"
   attr {
     key: "DstT"
     value {
@@ -1020,7 +865,7 @@ node {
   }
 }
 node {
-  name: "ones_like_1/tensor"
+  name: "Slice_1/begin"
   op: "Const"
   attr {
     key: "_output_shapes"
@@ -1056,7 +901,7 @@ node {
   }
 }
 node {
-  name: "ones_like_1/Shape"
+  name: "Slice_1/size"
   op: "Const"
   attr {
     key: "_output_shapes"
@@ -1086,144 +931,17 @@ node {
             size: 1
           }
         }
-        int_val: 1
+        int_val: 3072
       }
     }
   }
 }
 node {
-  name: "ones_like_1/Const"
-  op: "Const"
-  attr {
-    key: "_output_shapes"
-    value {
-      list {
-        shape {
-        }
-      }
-    }
-  }
-  attr {
-    key: "dtype"
-    value {
-      type: DT_INT32
-    }
-  }
-  attr {
-    key: "value"
-    value {
-      tensor {
-        dtype: DT_INT32
-        tensor_shape {
-        }
-        int_val: 1
-      }
-    }
-  }
-}
-node {
-  name: "ones_like_1"
-  op: "Fill"
-  input: "ones_like_1/Shape"
-  input: "ones_like_1/Const"
-  attr {
-    key: "T"
-    value {
-      type: DT_INT32
-    }
-  }
-  attr {
-    key: "_output_shapes"
-    value {
-      list {
-        shape {
-          dim {
-            size: 1
-          }
-        }
-      }
-    }
-  }
-}
-node {
-  name: "StridedSlice_1/begin"
-  op: "Const"
-  attr {
-    key: "_output_shapes"
-    value {
-      list {
-        shape {
-          dim {
-            size: 1
-          }
-        }
-      }
-    }
-  }
-  attr {
-    key: "dtype"
-    value {
-      type: DT_INT32
-    }
-  }
-  attr {
-    key: "value"
-    value {
-      tensor {
-        dtype: DT_INT32
-        tensor_shape {
-          dim {
-            size: 1
-          }
-        }
-        int_val: 1
-      }
-    }
-  }
-}
-node {
-  name: "StridedSlice_1/end"
-  op: "Const"
-  attr {
-    key: "_output_shapes"
-    value {
-      list {
-        shape {
-          dim {
-            size: 1
-          }
-        }
-      }
-    }
-  }
-  attr {
-    key: "dtype"
-    value {
-      type: DT_INT32
-    }
-  }
-  attr {
-    key: "value"
-    value {
-      tensor {
-        dtype: DT_INT32
-        tensor_shape {
-          dim {
-            size: 1
-          }
-        }
-        int_val: 3073
-      }
-    }
-  }
-}
-node {
-  name: "StridedSlice_1"
-  op: "StridedSlice"
+  name: "Slice_1"
+  op: "Slice"
   input: "DecodeRaw"
-  input: "StridedSlice_1/begin"
-  input: "StridedSlice_1/end"
-  input: "ones_like_1"
+  input: "Slice_1/begin"
+  input: "Slice_1/size"
   attr {
     key: "Index"
     value {
@@ -1241,39 +959,11 @@ node {
     value {
       list {
         shape {
-          unknown_rank: true
+          dim {
+            size: 3072
+          }
         }
       }
-    }
-  }
-  attr {
-    key: "begin_mask"
-    value {
-      i: 0
-    }
-  }
-  attr {
-    key: "ellipsis_mask"
-    value {
-      i: 0
-    }
-  }
-  attr {
-    key: "end_mask"
-    value {
-      i: 0
-    }
-  }
-  attr {
-    key: "new_axis_mask"
-    value {
-      i: 0
-    }
-  }
-  attr {
-    key: "shrink_axis_mask"
-    value {
-      i: 0
     }
   }
 }
@@ -1316,7 +1006,7 @@ node {
 node {
   name: "Reshape"
   op: "Reshape"
-  input: "StridedSlice_1"
+  input: "Slice_1"
   input: "Reshape/shape"
   attr {
     key: "T"
@@ -1603,7 +1293,7 @@ node {
   }
 }
 node {
-  name: "Slice"
+  name: "Slice_2"
   op: "Slice"
   input: "control_dependency_1"
   input: "stack"
@@ -1642,7 +1332,7 @@ node {
 node {
   name: "control_dependency_2"
   op: "Identity"
-  input: "Slice"
+  input: "Slice_2"
   attr {
     key: "T"
     value {
@@ -1653,7 +1343,7 @@ node {
     key: "_class"
     value {
       list {
-        s: "loc:@Slice"
+        s: "loc:@Slice_2"
       }
     }
   }
@@ -26354,7 +26044,7 @@ node {
         dtype: DT_STRING
         tensor_shape {
         }
-        string_val: "_temp_b3e856fba59d4a84b14d5b1b04290175/part"
+        string_val: "_temp_85c6e7d44fe24977a2d883a34654d991/part"
       }
     }
   }

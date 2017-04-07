@@ -33,7 +33,7 @@ MOV_AVG_DECAY = 0.999
 FLAGS = tf.app.flags.FLAGS
 tf.app.flags.DEFINE_integer('batch_size', 128,
                             """Number of images to process in a batch.""")
-tf.app.flags.DEFINE_string('data_dir', '../../content/ciraf/cifar-10-batches-py',
+tf.app.flags.DEFINE_string('data_dir', '../../content/ciraf/cifar-10-batches-bin',
                            """Path to the CIFAR-10 data directory.""")
 
 
