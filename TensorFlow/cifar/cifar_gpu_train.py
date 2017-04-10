@@ -164,9 +164,7 @@ def train():
             if step % 100 == 0:
                 summary_str = session.run(summary_op)
                 summary_writer.add_summary(summary_str, step)
-
-            if step % 1000 == 0 or (step + 1) == FLAGS.max_steps:
-                checkpoint_path = os.path.join(FLAGS.train_dir, 'cifar.ckpt')
+                checkpoint_path = os.path.join(FLAGS.train_dir, 'model.ckpt')
                 saver.save(session, checkpoint_path, global_step=step)
 
 

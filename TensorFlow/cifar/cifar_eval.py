@@ -17,7 +17,7 @@ import cifar_model
 FLAGS = tf.app.flags.FLAGS
 tf.app.flags.DEFINE_string('test_dir', 'cifar10_eval',
                            "Directory for summary")
-tf.app.flags.DEFINE_string('check_pnt_dir', 'cifar10_train',
+tf.app.flags.DEFINE_string('check_pnt_dir', 'cifar10_gpu_train',
                            "Directory, where checkpoint stores")
 tf.app.flags.DEFINE_integer('num_samples', 10000,
                             "Count of samples from test")
