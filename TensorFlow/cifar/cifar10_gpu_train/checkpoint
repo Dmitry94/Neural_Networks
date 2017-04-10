@@ -1,0 +1,2 @@
+model_checkpoint_path: "cifar.ckpt-0"
+all_model_checkpoint_paths: "cifar.ckpt-0"
