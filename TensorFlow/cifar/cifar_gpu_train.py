@@ -164,8 +164,13 @@ def train():
             if step % 100 == 0:
                 summary_str = session.run(summary_op)
                 summary_writer.add_summary(summary_str, step)
-                checkpoint_path = os.path.join(FLAGS.train_dir, 'model.ckpt')
+
+            if step % 1000 == 0 or (step + 1) == FLAGS.max_steps:
+                checkpoint_path = os.path.join(FLAGS.train_dir, 'cifar.ckpt')
                 saver.save(session, checkpoint_path, global_step=step)
+                tf.train.write_graph(session.graph, FLAGS.train_dir, 'graph.pbtxt')
+
+
 
 
 def main(argv=None):  # pylint: disable=unused-argument
