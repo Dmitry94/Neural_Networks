@@ -14,12 +14,11 @@ import os.path
 import re
 import time
 
-import numpy as np
 import tensorflow as tf
 import cifar_model
 
 FLAGS = tf.app.flags.FLAGS
-tf.app.flags.DEFINE_integer('max_steps', 10000, 'Max steps for algo')
+tf.app.flags.DEFINE_integer('max_steps', 100000, 'Max steps for algo')
 tf.app.flags.DEFINE_integer('gpus_count', 1, 'Count of GPUs')
 tf.app.flags.DEFINE_string('train_dir', 'cifar10_gpu_train', 'Directory for train log')
 tf.app.flags.DEFINE_boolean('log_dev_placement', False, 'Add to log device placement?')
@@ -81,21 +80,26 @@ def average_gradients(grads):
         avg_gr_and_vars = (grads, v)
         average_grads.append(avg_gr_and_vars)
 
-        return average_grads
+    return average_grads
 
 def train():
     """
         Train model.
     """
     with tf.Graph().as_default(), tf.device('/cpu:0'):
-        num_of_batches_per_epoch = cifar_model.TRAIN_SIZE / FLAGS.batch_size
-        decay_interval = int(num_of_batches_per_epoch * cifar_model.NUM_EPOCHS_PER_DECAY)
+        global_step = tf.get_variable(
+            'global_step', [],
+            initializer=tf.constant_initializer(0), trainable=False)
 
-        global_step = tf.get_variable('global_step', [],
-                        initializer=tf.constant_initializer(0), trainable=False)
+        num_batches_per_epoch = (cifar_model.TRAIN_SIZE /
+                                    FLAGS.batch_size)
+        decay_steps = int(num_batches_per_epoch * cifar_model.NUM_EPOCHS_PER_DECAY)
 
-        lr = tf.train.exponential_decay(cifar_model.INIT_LR, global_step,
-                        decay_interval, cifar_model.LR_DECAY_FACTOR, staircase=True)
+        lr = tf.train.exponential_decay(cifar_model.INIT_LR,
+                                        global_step,
+                                        decay_steps,
+                                        cifar_model.LR_DECAY_FACTOR,
+                                        staircase=True)
 
         opt = tf.train.GradientDescentOptimizer(lr)
 
@@ -111,63 +115,59 @@ def train():
                         grad = opt.compute_gradients(loss)
                         tower_grads.append(grad)
 
-            grads = average_gradients(tower_grads)
-            summaries.append(tf.summary.scalar('Learning rate', lr))
+        grads = average_gradients(tower_grads)
+        summaries.append(tf.summary.scalar('Learning rate', lr))
 
-            for grad, var in grads:
-                if grad is not None:
-                    tf.summary.histogram(var.op.name + '/histogram', grad)
-            apply_gradient_op = opt.apply_gradients(grads, global_step=global_step)
-
-
-            for var in tf.trainable_variables():
-                summaries.append(tf.summary.histogram(var.op.name, var))
-            # var_mov_avgs = tf.train.ExponentialMovingAverage(cifar_model.MOV_AVG_DECAY,
-            #                         global_step)
-            # var_mov_avgs_op = var_mov_avgs.apply(tf.trainable_variables())
+        for grad, var in grads:
+            if grad is not None:
+                summaries.append(tf.summary.histogram(var.op.name + '/gradients', grad))
+        apply_gradient_op = opt.apply_gradients(grads, global_step=global_step)
 
 
-            train_op = apply_gradient_op
-            saver = tf.train.Saver(tf.trainable_variables())
-            summary_op = tf.summary.merge(summaries)
-
-            init = tf.global_variables_initializer()
-
-
-            session = tf.Session(config=tf.ConfigProto(allow_soft_placement=True,
-                        log_device_placement=FLAGS.log_dev_placement))
-            session.run(init)
-
-            tf.train.start_queue_runners(session)
-            summary_writer = tf.summary.FileWriter(FLAGS.train_dir, session.graph)
+        for var in tf.trainable_variables():
+            summaries.append(tf.summary.histogram(var.op.name, var))
+        var_mov_avgs = tf.train.ExponentialMovingAverage(cifar_model.MOV_AVG_DECAY,
+                                global_step)
+        var_mov_avgs_op = var_mov_avgs.apply(tf.trainable_variables())
 
 
-            for step in xrange(FLAGS.max_steps):
-                start_time = time.time()
-                _, loss_value = session.run([train_op, loss])
-                during = time.time() - start_time
+        train_op = tf.group(apply_gradient_op, var_mov_avgs_op)
+        saver = tf.train.Saver(tf.trainable_variables())
+        summary_op = tf.summary.merge(summaries)
 
-                if step % 10 == 0:
-                    exmpls_per_step = FLAGS.batch_size * FLAGS.gpus_count
-                    exmpls_per_sec = exmpls_per_step / during
-                    scds_per_batch = during / FLAGS.gpus_count
-
-                    format_str = ('%s: step %d, loss = %.2f (%.1f examples/sec; %.3f '
-                    'sec/batch)')
-                    print (format_str % (datetime.now(), step, loss_value,
-                                        exmpls_per_sec, scds_per_batch))
-
-                if step % 100 == 0:
-                    summary_str = session.run(summary_op)
-                    summary_writer.add_summary(summary_str, step)
-
-                if step % 1000 == 0 or (step + 1) == FLAGS.max_steps:
-                    checkpoint_path = os.path.join(FLAGS.train_dir, 'cifar.ckpt')
-                    saver.save(session, checkpoint_path, global_step=step)
+        init = tf.global_variables_initializer()
 
 
+        session = tf.Session(config=tf.ConfigProto(allow_soft_placement=True,
+                    log_device_placement=FLAGS.log_dev_placement))
+        session.run(init)
+
+        tf.train.start_queue_runners(session)
+        summary_writer = tf.summary.FileWriter(FLAGS.train_dir, session.graph)
 
 
+        for step in xrange(FLAGS.max_steps):
+            start_time = time.time()
+            _, loss_value = session.run([train_op, loss])
+            during = time.time() - start_time
+
+            if step % 10 == 0:
+                exmpls_per_step = FLAGS.batch_size * FLAGS.gpus_count
+                exmpls_per_sec = exmpls_per_step / during
+                scds_per_batch = during / FLAGS.gpus_count
+
+                format_str = ('%s: step %d, loss = %.2f (%.1f examples/sec; %.3f '
+                'sec/batch)')
+                print (format_str % (datetime.now(), step, loss_value,
+                                    exmpls_per_sec, scds_per_batch))
+
+            if step % 100 == 0:
+                summary_str = session.run(summary_op)
+                summary_writer.add_summary(summary_str, step)
+
+            if step % 1000 == 0 or (step + 1) == FLAGS.max_steps:
+                checkpoint_path = os.path.join(FLAGS.train_dir, 'cifar.ckpt')
+                saver.save(session, checkpoint_path, global_step=step)
 
 
 def main(argv=None):  # pylint: disable=unused-argument
