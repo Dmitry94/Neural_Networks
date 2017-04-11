@@ -17,11 +17,11 @@ import cifar_model
 FLAGS = tf.app.flags.FLAGS
 tf.app.flags.DEFINE_string('test_dir', 'cifar10_eval',
                            "Directory for summary")
-tf.app.flags.DEFINE_string('check_pnt_dir', 'cifar10_gpu_train',
+tf.app.flags.DEFINE_string('check_pnt_dir', 'cifar10_train',
                            "Directory, where checkpoint stores")
 tf.app.flags.DEFINE_integer('num_samples', 10000,
                             "Count of samples from test")
-tf.app.flags.DEFINE_integer('eval_interval', 60 * 5,
+tf.app.flags.DEFINE_integer('eval_interval', 60,
                             "Evaluating interval in seconds")
 tf.app.flags.DEFINE_bool('eval_once', False,
                          "Evaluate once or with some interval?")
@@ -87,9 +87,9 @@ def evaluate():
         logits = cifar_model.inference(images)
         top_k_op = tf.nn.in_top_k(logits, labels, 1)
 
-        variable_avgs = tf.train.ExponentialMovingAverage(cifar_model.MOV_AVG_DECAY)
-        variables_to_restore = variable_avgs.variables_to_restore()
-        saver = tf.train.Saver(variables_to_restore)
+        # variable_avgs = tf.train.ExponentialMovingAverage(cifar_model.MOV_AVG_DECAY)
+        # variables_to_restore = variable_avgs.variables_to_restore()
+        saver = tf.train.Saver()
 
         summary_op = tf.summary.merge_all()
         summary_writer = tf.summary.FileWriter(FLAGS.test_dir, graph)
