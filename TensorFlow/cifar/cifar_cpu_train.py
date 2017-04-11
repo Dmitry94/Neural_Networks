@@ -2,28 +2,45 @@
   Train cifar model.
 """
 
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-
-from datetime import datetime
-import time
-
 import tensorflow as tf
+slim = tf.contrib.slim
 
 import cifar_model
+import cifar_input
 
 FLAGS = tf.app.flags.FLAGS
+
+tf.app.flags.DEFINE_string('data_dir', '../../content/ciraf/cifar-10-batches-bin',
+                           """Path to the CIFAR-10 data directory.""")
 
 tf.app.flags.DEFINE_string('train_dir', 'cifar10_train',
                            """Directory where to write event logs """
                            """and checkpoint.""")
+
+
 tf.app.flags.DEFINE_integer('max_steps', 1000000,
                             """Number of batches to run.""")
-tf.app.flags.DEFINE_boolean('log_device_placement', False,
-                            """Whether to log device placement.""")
+
+tf.app.flags.DEFINE_integer('batch_size', 128,
+                            """Number of images to process in a batch.""")
+
+
+tf.app.flags.DEFINE_float('init_lr', 0.1, """Start value for learning rate""")
+
+tf.app.flags.DEFINE_float('lr_decay_factor', 0.1, """Learning rate decay factor""")
+
+tf.app.flags.DEFINE_integer('num_epochs_lr_decay', 350,
+                            """How many epochs should processed to decay lr.""")
+
+
 tf.app.flags.DEFINE_integer('log_frequency', 10,
                             """How often to log results to the console.""")
+
+tf.app.flags.DEFINE_integer('save_checkpoint_secs', 60 * 10,
+                            """How often to save checkpoint.""")
+
+tf.app.flags.DEFINE_integer('save_summary_secs', 60 * 5,
+                            """How often to save summary.""")
 
 
 def train():
@@ -34,65 +51,39 @@ def train():
         global_step = tf.contrib.framework.get_or_create_global_step()
 
         # Get images and labels for CIFAR-10.
-        images, labels = cifar_model.train_inputs()
+        images, labels = cifar_input.train_inputs(FLAGS.data_dir, FLAGS.batch_size)
 
         # Build a Graph that computes the logits predictions from the
         # inference model.
-        logits = cifar_model.inference(images)
+        logits = cifar_model.inference(images, cifar_input.NUM_CLASSES)
 
         # Calculate loss.
-        loss = cifar_model.loss(labels, logits)
+        _ = slim.losses.sparse_softmax_cross_entropy(logits, labels)
+        loss = slim.losses.get_total_loss()
+
+        # Set learning rate and optimizer
+        num_batches_per_epoch = cifar_input.TRAIN_SIZE / FLAGS.batch_size
+        lr_decay_steps = FLAGS.num_epochs_lr_decay * num_batches_per_epoch
+        lr = tf.train.exponential_decay(FLAGS.init_lr, global_step, lr_decay_steps,
+                                        FLAGS.lr_decay_factor, staircase=True)
+        opt = tf.train.GradientDescentOptimizer(lr)
 
         # Build a Graph that trains the model with one batch of examples and
         # updates the model parameters.
-        train_op = cifar_model.train(loss, global_step)
+        train_op = slim.learning.create_train_op(loss, opt)
 
-        class _LoggerHook(tf.train.SessionRunHook):
-            """
-               Logs loss and runtime.
-            """
+        tf.summary.scalar('Learning rate', lr)
+        tf.summary.scalar('Loss', loss)
 
-            def begin(self):
-                self._step = -1
-                self._start_time = time.time()
-
-            def before_run(self, run_context):
-                self._step += 1
-                return tf.train.SessionRunArgs(loss)  # Asks for loss value.
-
-            def after_run(self, run_context, run_values):
-                if self._step % FLAGS.log_frequency == 0:
-                    current_time = time.time()
-                    duration = current_time - self._start_time
-                    self._start_time = current_time
-
-                    loss_value = run_values.results
-                    examples_per_sec = FLAGS.log_frequency * FLAGS.batch_size / duration
-                    sec_per_batch = float(duration / FLAGS.log_frequency)
-
-                    format_str = ('%s: step %d, loss = %.2f (%.1f examples/sec; %.3f '
-                                  'sec/batch)')
-                    print (format_str % (datetime.now(), self._step, loss_value,
-                                         examples_per_sec, sec_per_batch))
-
-        with tf.Session():
-            with tf.train.MonitoredTrainingSession(
-                checkpoint_dir=FLAGS.train_dir,
-                hooks=[tf.train.StopAtStepHook(last_step=FLAGS.max_steps),
-                       tf.train.NanTensorHook(loss),
-                       _LoggerHook()],
-                config=tf.ConfigProto(
-                    log_device_placement=FLAGS.log_device_placement)) as mon_sess:
-                while not mon_sess.should_stop():
-                    mon_sess.run(train_op)
+        slim.learning.train(train_op, FLAGS.train_dir,
+                            number_of_steps=FLAGS.max_steps,
+                            save_summaries_secs=FLAGS.save_summary_secs,
+                            save_interval_secs=FLAGS.save_checkpoint_secs,
+                            log_every_n_steps=FLAGS.log_frequency)
 
 
-def main(argv=None):
+if __name__ == '__main__':
     if tf.gfile.Exists(FLAGS.train_dir):
         tf.gfile.DeleteRecursively(FLAGS.train_dir)
     tf.gfile.MakeDirs(FLAGS.train_dir)
     train()
-
-
-if __name__ == '__main__':
-    tf.app.run()

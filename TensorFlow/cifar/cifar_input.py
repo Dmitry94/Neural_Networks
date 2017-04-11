@@ -13,16 +13,26 @@ from __future__ import division
 import os
 import tensorflow as tf
 
-
-# Process images of this size. Note that this differs from the original CIFAR
-# image size of 32 x 32. If one alters this number, then the entire model
-# architecture will change and any model would need to be retrained.
-IMAGE_SIZE = 24
-
 # Global constants describing the CIFAR-10 data set.
 NUM_CLASSES = 10
-NUM_EXAMPLES_PER_EPOCH_FOR_TRAIN = 50000
-NUM_EXAMPLES_PER_EPOCH_FOR_TEST = 10000
+TRAIN_SIZE = 50000
+TEST_SIZE = 10000
+
+def train_inputs(data_dir, batch_size, image_size=24):
+    """
+        Get train inputs
+    """
+    return get_cifar10_input(data_dir, batch_size,
+                    image_size, False)
+
+
+def test_inputs(data_dir, batch_size, image_size=24):
+    """
+        Get test inputs
+    """
+    return get_cifar10_input(data_dir, batch_size,
+                    image_size, True)
+
 
 
 def read_cifar10(filename_queue):
@@ -99,7 +109,7 @@ def _generate_batch(image, label, min_queue_size,
     return images, labels
 
 
-def get_cifar10_input(data_dir, batch_size, is_test):
+def get_cifar10_input(data_dir, batch_size, image_size, is_test):
     """
         Constructs input from cifar10.
 
@@ -116,11 +126,11 @@ def get_cifar10_input(data_dir, batch_size, is_test):
     """
     if is_test:
         filenames = [os.path.join(data_dir, 'test_batch.bin')]
-        num_examples_per_epoch = NUM_EXAMPLES_PER_EPOCH_FOR_TEST
+        num_examples_per_epoch = TEST_SIZE
     else:
         filenames = [os.path.join(data_dir, 'data_batch_%d.bin' % i)
                      for i in xrange(1, 6)]
-        num_examples_per_epoch = NUM_EXAMPLES_PER_EPOCH_FOR_TRAIN
+        num_examples_per_epoch = TRAIN_SIZE
 
     for f in filenames:
         if not tf.gfile.Exists(f):
@@ -130,8 +140,8 @@ def get_cifar10_input(data_dir, batch_size, is_test):
     records = read_cifar10(queue)
     float_image = tf.cast(records.image, tf.float32)
     float_image = tf.image.resize_image_with_crop_or_pad(float_image,
-                                                         IMAGE_SIZE,
-                                                         IMAGE_SIZE)
+                                                         image_size,
+                                                         image_size)
     float_image = tf.image.per_image_standardization(float_image)
 
     min_percent_samples_in_queue = 0.4
