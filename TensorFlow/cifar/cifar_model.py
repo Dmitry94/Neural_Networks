@@ -74,7 +74,11 @@ def inference(images):
                             weights_regularizer=slim.l2_regularizer(0.0)):
             net = slim.conv2d(images, 64, [5, 5], scope='conv1')
             net = slim.max_pool2d(net, [3, 3], stride=2, scope='pool1')
+            net = tf.nn.lrn(net, 4, bias=1.0, alpha=0.001 / 9.0, beta=0.75,
+                            name='norm1')
             net = slim.conv2d(net, 64, [5, 5], scope='conv2')
+            net = tf.nn.lrn(net, 4, bias=1.0, alpha=0.001 / 9.0, beta=0.75,
+                            name='norm2')
             net = slim.max_pool2d(net, [3, 3], stride=2, scope='pool2')
             net = tf.reshape(net, [FLAGS.batch_size, -1])
 
@@ -83,10 +87,12 @@ def inference(images):
                             weights_regularizer=slim.l2_regularizer(0.004)):
             net = slim.fully_connected(net, 384, scope='fc1')
             net = slim.fully_connected(net, 192, scope='fc2')
-            net = slim.fully_connected(net, NUM_CLASSES,
-                        activation_fn=None,
-                        weights_initializer=tf.truncated_normal_initializer(0.0, 1/192.0),
-                        weights_regularizer=slim.l2_regularizer(0.0))
+
+        net = slim.fully_connected(net, NUM_CLASSES,
+                    activation_fn=None,
+                    weights_initializer=tf.truncated_normal_initializer(0.0, 1/192.0),
+                    weights_regularizer=slim.l2_regularizer(0.0),
+                    scope='softmax-linear')
 
     return net
 
