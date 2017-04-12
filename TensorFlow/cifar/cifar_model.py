@@ -72,6 +72,7 @@ def inference(images, model_params):
             net = tf.nn.lrn(net, 4, bias=1.0, alpha=0.001 / 9.0, beta=0.75,
                             name='norm1')
 
+
             net = slim.conv2d(net, conv_params.layers[1].filters_count,
                               kernel_size=conv_params.layers[1].ksize,
                               stride=conv_params.layers[1].stride, scope='conv2')
@@ -84,15 +85,13 @@ def inference(images, model_params):
             net = tf.reshape(net, [images.get_shape()[0].value, -1])
 
 
+
         with slim.arg_scope([slim.fully_connected], activation_fn=fc_params.act_fn,
                 weights_initializer=tf.truncated_normal_initializer
                                     (fc_params.mean, fc_params.stddev),
                 weights_regularizer=slim.l2_regularizer(fc_params.rl)):
-            net = slim.fully_connected(net, fc_params.sizes[0], scope='fc1')
-            _tensor_summary(net)
-
-            net = slim.fully_connected(net, fc_params.sizes[1], scope='fc2')
-            _tensor_summary(net)
+            net = slim.stack(net, slim.fully_connected, fc_params.sizes[0:2],
+                             scope='fc')
 
 
         net = slim.fully_connected(net, fc_params.sizes[2], activation_fn=None,
