@@ -2,11 +2,17 @@
     Cifar evaluation on test script.
 """
 
+# pylint: disable=C0103
+# pylint: disable=C0330
+
 import math
-import tensorflow as tf
-slim = tf.contrib.slim
+
 import cifar_model
 import cifar_input
+
+import tensorflow as tf
+slim = tf.contrib.slim
+
 
 FLAGS = tf.app.flags.FLAGS
 
