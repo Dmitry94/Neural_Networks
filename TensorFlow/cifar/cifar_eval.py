@@ -38,7 +38,7 @@ def evaluate():
     images, labels = cifar_input.test_inputs(FLAGS.data_dir, FLAGS.batch_size)
     logits = cifar_model.inference(images, cifar_input.NUM_CLASSES)
     logits = tf.argmax(logits, axis=1)
-    logits = tf.to_int32(logits)
+    logits = tf.cast(logits, tf.int32)
 
     names_to_values, names_to_updates = slim.metrics.aggregate_metric_map({
         'accuracy': slim.metrics.accuracy(logits, labels)

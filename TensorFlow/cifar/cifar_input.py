@@ -5,6 +5,8 @@
 
 # pylint: disable=C0103
 # pylint: disable=C0330
+# pylint: disable=C0111
+# pylint: disable=W0201
 
 from __future__ import print_function
 from __future__ import absolute_import
@@ -41,13 +43,13 @@ def read_cifar10(filename_queue):
 
         Parameters:
         -------
-        filename_queue : queue of strings
+            filename_queue : queue of strings
 
         Returns:
         -------
-        Structure with fields:
-            height, width, depth, label, image(uint8),
-            key - record number & filename
+            Structure with fields:
+                height, width, depth, label, image(uint8),
+                key - record number & filename
     """
     class Cifar10Record(object):
         pass
@@ -82,15 +84,15 @@ def _generate_batch(image, label, min_queue_size,
 
         Parameters:
         -------
-        image: 3d tensor [h, w, 3] of float32\n
-        label: 1d tensor of int32\n
-        min_queue_size: min count of samples\n
-        is_shuffle: flag, which tells shuffle batch or not\n
+            image: 3d tensor [h, w, 3] of float32
+            label: 1d tensor of int32
+            min_queue_size: min count of samples
+            is_shuffle: flag, which tells shuffle batch or not
 
         Returns:
         -------
-        images: 4d tensor [batch_size, h, w, 3] of float32\n
-        labels: 1d tensor [batch_size] of int32\n
+            images: 4d tensor [batch_size, h, w, 3] of float32
+            labels: 1d tensor [batch_size] of int32
     """
     num_of_threads = 16
     if is_shuffle:
@@ -115,14 +117,14 @@ def get_cifar10_input(data_dir, batch_size, image_size, is_test):
 
         Parameters:
         -------
-        data_dir: directory where cifar data is allocated\n
-        batch_size: size of one batch\n
-        is_test: flag, defines with *.bins to load\n
+            data_dir: directory where cifar data is allocated
+            batch_size: size of one batch
+            is_test: flag, defines with *.bins to load
 
         Returns:
         -------
-        images: 4d tensor: [batch_size, h, w, 3]\n
-        labels: 1d tensor: [batch_size]\n
+            images: 4d tensor: [batch_size, h, w, 3]
+            labels: 1d tensor: [batch_size]
     """
     if is_test:
         filenames = [os.path.join(data_dir, 'test_batch.bin')]
