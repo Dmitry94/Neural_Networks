@@ -17,11 +17,11 @@ Conv2dParams = namedtuple('Conv2dParams', ['stride', 'ksize', 'filters_count'],
 Pool2dParams = namedtuple('Pool2dParams', ['stride', 'ksize'], verbose=True)
 
 FullyConLayersParams = namedtuple('FullyConLayersParams',
-                                  ['sizes', 'mean', 'stddev', 'rl', 'act_fn'],
+                                  ['sizes', 'rl', 'act_fn'],
                                   verbose=True)
 
 Conv2dLayersParams = namedtuple('Conv2dLayersParams',
-                                ['layers', 'mean', 'stddev', 'rl', 'act_fn'],
+                                ['layers', 'rl', 'act_fn'],
                                 verbose=True)
 
 ModelParams = namedtuple('ModelParams', ['conv_params', 'fc_params', 'pool_params'],
@@ -60,8 +60,7 @@ def inference(images, model_params):
 
     with tf.device('/CPU:0'):
         with slim.arg_scope([slim.conv2d], activation_fn=conv_params.act_fn,
-                weights_initializer=tf.truncated_normal_initializer
-                                (conv_params.mean, conv_params.stddev),
+                weights_initializer=slim.xavier_initializer(),
                 weights_regularizer=slim.l2_regularizer(conv_params.rl)):
             net = slim.conv2d(images, conv_params.layers[0].filters_count,
                               kernel_size=conv_params.layers[0].ksize,
@@ -87,16 +86,14 @@ def inference(images, model_params):
 
 
         with slim.arg_scope([slim.fully_connected], activation_fn=fc_params.act_fn,
-                weights_initializer=tf.truncated_normal_initializer
-                                    (fc_params.mean, fc_params.stddev),
+                weights_initializer=slim.xavier_initializer(),
                 weights_regularizer=slim.l2_regularizer(fc_params.rl)):
             net = slim.stack(net, slim.fully_connected, fc_params.sizes[0:2],
                              scope='fc')
 
 
         net = slim.fully_connected(net, fc_params.sizes[2], activation_fn=None,
-            weights_initializer=tf.truncated_normal_initializer
-                        (0, 1 / fc_params.sizes[1]),
+            weights_initializer=slim.xavier_initializer(),
             weights_regularizer=slim.l2_regularizer(0.0), scope='softmax-linear')
         _tensor_summary(net)
 

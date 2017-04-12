@@ -53,16 +53,14 @@ def get_model_params():
     conv_layer1 = cifar_model.Conv2dParams(ksize=5, stride=1, filters_count=64)
     conv_layer2 = cifar_model.Conv2dParams(ksize=5, stride=1, filters_count=64)
     conv_params = cifar_model.Conv2dLayersParams(layers=[conv_layer1, conv_layer2],
-                                                 mean=0, stddev=5e-2, rl=0.0,
-                                                 act_fn=tf.nn.relu)
+                                                 rl=0.0, act_fn=tf.nn.relu)
 
     pool_layer1 = cifar_model.Pool2dParams(ksize=3, stride=2)
     pool_layer2 = cifar_model.Pool2dParams(ksize=3, stride=2)
     pool_params = [pool_layer1, pool_layer2]
 
     fc_params = cifar_model.FullyConLayersParams(sizes=[384, 192, cifar_input.NUM_CLASSES],
-                                                 mean=0, stddev=4e-2, rl=0.004,
-                                                 act_fn=tf.nn.relu)
+                                                 rl=0.004, act_fn=tf.nn.relu)
 
     model_params = cifar_model.ModelParams(conv_params=conv_params,
                                            pool_params=pool_params,
