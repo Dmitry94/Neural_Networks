@@ -37,6 +37,28 @@ tf.app.flags.DEFINE_bool('eval_once', None,
                          "Evaluate once or with some interval?")
 
 
+def get_model_params():
+    """
+        Creating ModelParams object.
+    """
+    conv_layer1 = cifar_model.Conv2dParams(ksize=5, stride=1, filters_count=64)
+    conv_layer2 = cifar_model.Conv2dParams(ksize=5, stride=1, filters_count=64)
+    conv_params = cifar_model.Conv2dLayersParams(layers=[conv_layer1, conv_layer2],
+                                                 rl=0.0, act_fn=tf.nn.relu)
+
+    pool_layer1 = cifar_model.Pool2dParams(ksize=3, stride=2)
+    pool_layer2 = cifar_model.Pool2dParams(ksize=3, stride=2)
+    pool_params = [pool_layer1, pool_layer2]
+
+    fc_params = cifar_model.FullyConLayersParams(sizes=[384, 192, cifar_input.NUM_CLASSES],
+                                                 rl=0.004, act_fn=tf.nn.relu)
+
+    model_params = cifar_model.ModelParams(conv_params=conv_params,
+                                           pool_params=pool_params,
+                                           fc_params=fc_params)
+
+    return model_params
+
 def evaluate():
     """
         Evaluate net on CIFAR10 Test set.

@@ -50,21 +50,21 @@ def get_model_params():
     """
         Creating ModelParams object.
     """
-    conv_layer1 = cifar_model.Conv2dParams(ksize=5, stride=1, filters_count=64)
-    conv_layer2 = cifar_model.Conv2dParams(ksize=5, stride=1, filters_count=64)
-    conv_params = cifar_model.Conv2dLayersParams(layers=[conv_layer1, conv_layer2],
-                                                 rl=0.0, act_fn=tf.nn.relu)
+    filters_count = [64, 64]
+    conv_ksizes = [5]
+    conv_strides = [1]
+    pool_ksizes = [3]
+    pool_strides = [2]
+    fc_sizes = [384, 192, cifar_input.NUM_CLASSES]
+    dropouts = [0.5]
 
-    pool_layer1 = cifar_model.Pool2dParams(ksize=3, stride=2)
-    pool_layer2 = cifar_model.Pool2dParams(ksize=3, stride=2)
-    pool_params = [pool_layer1, pool_layer2]
-
-    fc_params = cifar_model.FullyConLayersParams(sizes=[384, 192, cifar_input.NUM_CLASSES],
-                                                 rl=0.004, act_fn=tf.nn.relu)
-
-    model_params = cifar_model.ModelParams(conv_params=conv_params,
-                                           pool_params=pool_params,
-                                           fc_params=fc_params)
+    model_params = cifar_model.ModelParams(filters_count=filters_count,
+                                           conv_ksizes=conv_ksizes,
+                                           conv_strides=conv_strides,
+                                           pool_ksizes=pool_ksizes,
+                                           pool_strides=pool_strides,
+                                           fc_sizes=fc_sizes,
+                                           dropouts=dropouts)
 
     return model_params
 
