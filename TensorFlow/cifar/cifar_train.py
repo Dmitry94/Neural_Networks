@@ -82,18 +82,22 @@ def train(app_args):
                                                       summary_op,
                                                       loss])
 
-                if step % 100 == 0 and step > 0:
+                if step % app_args.save_summary_steps == 0 and step > 0:
                     summary_writer.add_summary(summary, step)
+                    current_time = time.time()
+                    duration = current_time - start_time
+                    start_time = current_time
 
-                    secs_for_step = ((time.time() - start_time) /
-                                     (step - start_time_step))
-                    start_time = time.time()
-                    start_time_step = step
+                    examples_per_sec = int(app_args.save_summary_steps *
+                                           app_args.batch_size / duration)
+                    sec_per_batch = float(duration /
+                                          app_args.save_summary_steps)
                     print(
-                        'On step = %d, Loss = %f, Sec per step = %f' %
-                        (step, loss_value, secs_for_step))
+                        'Step = %d Loss = %f Samples per sec = %d'
+                        ' Sec per batch = %f' %
+                        (step, loss_value, examples_per_sec, sec_per_batch))
 
-                if step % 1000 == 0:
+                if step % app_args.save_checkpoint_steps == 0:
                     checkpoint_file = os.path.join(app_args.log_dir,
                                                    'model.ckpt')
                     saver.save(session, checkpoint_file, step)
@@ -136,13 +140,13 @@ if __name__ == '__main__':
                         help='How often to log results to the console',
                         default=10)
 
-    parser.add_argument('--save_checkpoint_secs', type=int,
+    parser.add_argument('--save_checkpoint_steps', type=int,
                         help='How often to save checkpoint',
-                        default=60 * 10)
+                        default=1000)
 
-    parser.add_argument('--save_summary_secs', type=int,
+    parser.add_argument('--save_summary_steps', type=int,
                         help='How often to save summary',
-                        default=60 * 5)
+                        default=100)
 
     parser.add_argument('--filters_counts', nargs='+', type=int,
                         help='List of filter counts for each conv layer',
