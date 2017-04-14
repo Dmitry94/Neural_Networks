@@ -82,22 +82,21 @@ def train(app_args):
                                                       summary_op,
                                                       loss])
 
-                with tf.device('/CPU:0'):
-                    if step % 100 == 0 and step > 0:
-                        summary_writer.add_summary(summary, step)
+                if step % 100 == 0 and step > 0:
+                    summary_writer.add_summary(summary, step)
 
-                        secs_for_step = ((time.time() - start_time) /
-                                         (step - start_time_step))
-                        start_time = time.time()
-                        start_time_step = step
-                        print(
-                            'On step = %d, Loss = %f, Sec per step = %f' %
-                            (step, loss_value, secs_for_step))
+                    secs_for_step = ((time.time() - start_time) /
+                                     (step - start_time_step))
+                    start_time = time.time()
+                    start_time_step = step
+                    print(
+                        'On step = %d, Loss = %f, Sec per step = %f' %
+                        (step, loss_value, secs_for_step))
 
-                    if step % 1000 == 0:
-                        checkpoint_file = os.path.join(app_args.log_dir,
-                                                       'model.ckpt')
-                        saver.save(session, checkpoint_file, step)
+                if step % 1000 == 0:
+                    checkpoint_file = os.path.join(app_args.log_dir,
+                                                   'model.ckpt')
+                    saver.save(session, checkpoint_file, step)
 
             coordinator.request_stop()
             coordinator.join(threads)
