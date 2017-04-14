@@ -2,11 +2,14 @@
     Cifar10 Network model.
 """
 
+from __future__ import print_function
+
 from collections import namedtuple
 
 import tensorflow as tf
 from tensorflow.contrib import slim
 
+total_params_count = 0
 ModelParams = namedtuple('ModelParams', ['filters_counts',
                                          'conv_ksizes', 'conv_strides',
                                          'pool_ksizes', 'pool_strides',
@@ -48,13 +51,27 @@ def conv_pool_drop_2d(in_data, filters_count, conv_ksize, conv_stride,
     out = tf.layers.conv2d(in_data, filters_count, kernel_size=conv_ksize,
                            strides=conv_stride, name=scope + '/conv')
     _tensor_summary(out)
+    if not isinstance(conv_ksize, list):
+        conv_ksize = [conv_ksize, conv_ksize]
+    if len(conv_ksize) < 2:
+        conv_ksize = [conv_ksize[0], conv_ksize[0]]
+    params_count = filters_count * (conv_ksize[0] * conv_ksize[1] * 3 + 1)
+    print('Convolutional layer: shape = ', out.get_shape(),
+          ', kernel = ', conv_ksize, ', strides = ', conv_stride,
+          ', filters count = ', filters_count,
+          ', layer num of params = ', params_count)
+    global total_params_count
+    total_params_count += params_count
 
     out = tf.layers.max_pooling2d(out, pool_size=pool_ksize,
                                   strides=pool_stride,
                                   name=scope + '/pool')
     _tensor_summary(out)
+    print('Pool layer: shape = ', out.get_shape(),
+          ', kernel = ', pool_ksize, ', strides = ', pool_stride)
 
     out = tf.layers.dropout(out, rate=drop_rate, name=scope + '/dropout')
+    print('Dropout layer: drop rate = ', drop_rate)
     _tensor_summary(out)
 
     return out
@@ -77,9 +94,16 @@ def fc_drop(in_data, fc_size, drop_rate, scope):
     """
     out = slim.fully_connected(in_data, fc_size, scope=scope + 'fc')
     _tensor_summary(out)
+    params_count = fc_size * in_data.get_shape()[-1].value
+    print('Fully connected layer: shape = ', out.get_shape(),
+          ', size = ', fc_size,
+          ', layer num of params = ', params_count)
+    global total_params_count
+    total_params_count += params_count
 
     out = tf.layers.dropout(out, rate=drop_rate, name=scope + '/dropout')
     _tensor_summary(out)
+    print('Dropout layer: drop rate = ', drop_rate)
 
     return out
 
@@ -104,6 +128,8 @@ def inference(images, model_params):
     pool_strides = model_params.pool_strides
     fc_sizes = model_params.fc_sizes
     drop_rates = model_params.drop_rates
+    global total_params_count
+    total_params_count = 0
 
     if not filters_counts:
         raise ValueError("List of convolutional layers filters is empty!")
@@ -152,8 +178,14 @@ def inference(images, model_params):
                                            drop_rates[conv_layers_count:]),
                          scope='fc_layers')
 
-        net = slim.fully_connected(net, fc_sizes[-1], activation_fn=None,
-                                   scope='logits')
-        _tensor_summary(net)
+        logits = slim.fully_connected(net, fc_sizes[-1], activation_fn=None,
+                                      scope='logits')
+        _tensor_summary(logits)
+        params_count = fc_sizes[-1] * net.get_shape()[-1].value
+        print('Fully connected layer: shape = ', logits.get_shape(),
+              ', size = ', fc_sizes[-1],
+              ', layer num of params = ', params_count)
+        total_params_count += params_count
+        print('Total params count = ', total_params_count)
 
-    return net
+    return logits
