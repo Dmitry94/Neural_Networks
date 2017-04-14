@@ -20,12 +20,13 @@ NUM_CLASSES = 10
 TRAIN_SIZE = 50000
 TEST_SIZE = 10000
 
+
 def train_inputs(data_dir, batch_size, image_size=24):
     """
         Get train inputs
     """
     return get_cifar10_input(data_dir, batch_size,
-                    image_size, False)
+                             image_size, False)
 
 
 def test_inputs(data_dir, batch_size, image_size=24):
@@ -33,8 +34,7 @@ def test_inputs(data_dir, batch_size, image_size=24):
         Get test inputs
     """
     return get_cifar10_input(data_dir, batch_size,
-                    image_size, True)
-
+                             image_size, True)
 
 
 def read_cifar10(filename_queue):
@@ -77,6 +77,7 @@ def read_cifar10(filename_queue):
 
     return result
 
+
 def _generate_batch(image, label, min_queue_size,
                     batch_size, is_shuffle):
     """
@@ -96,14 +97,14 @@ def _generate_batch(image, label, min_queue_size,
     """
     num_of_threads = 16
     if is_shuffle:
-        images, labels = tf.train.shuffle_batch([image, label], batch_size,
-                                capacity=min_queue_size + 3 * batch_size,
-                                min_after_dequeue=min_queue_size,
-                                num_threads=num_of_threads)
+        images, labels = tf.train.shuffle_batch(
+            [image, label], batch_size, 
+            capacity=min_queue_size + 3 * batch_size,
+            min_after_dequeue=min_queue_size, num_threads=num_of_threads)
     else:
-        images, labels = tf.train.batch([image, label], batch_size,
-                            num_threads=num_of_threads,
-                            capacity=min_queue_size + 3 * batch_size)
+        images, labels = tf.train.batch(
+            [image, label], batch_size, num_threads=num_of_threads,
+            capacity=min_queue_size + 3 * batch_size)
 
     tf.summary.image('Images', images)
     labels = tf.reshape(labels, [batch_size])

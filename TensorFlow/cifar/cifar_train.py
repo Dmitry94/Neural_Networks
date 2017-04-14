@@ -2,7 +2,9 @@
   Train cifar model.
 """
 
+import os
 import argparse
+import time
 
 import cifar_model
 import cifar_input
@@ -31,42 +33,74 @@ def train(app_args):
     """
       Train CIFAR-10 for a number of steps.
     """
-    global_step = tf.contrib.framework.get_or_create_global_step()
+    with tf.Graph().as_default() as graph:
+        # Get images and labels for CIFAR-10.
+        with tf.device('/CPU:0'):
+            images, labels = cifar_input.train_inputs(app_args.data_dir,
+                                                      app_args.batch_size)
 
-    # Get images and labels for CIFAR-10.
-    with tf.device('/CPU:0'):
-        images, labels = cifar_input.train_inputs(app_args.data_dir,
-                                                  app_args.batch_size)
+        # Build a Graph that computes the logits predictions
+        model_params = get_model_params(app_args)
+        logits = cifar_model.inference(images, model_params)
 
-    # Build a Graph that computes the logits predictions from the
-    # inference model.
-    model_params = get_model_params(app_args)
-    logits = cifar_model.inference(images, model_params)
+        # Calculate loss.
+        tf.losses.sparse_softmax_cross_entropy(labels, logits)
+        loss = tf.losses.get_total_loss()
 
-    # Calculate loss.
-    tf.losses.sparse_softmax_cross_entropy(labels, logits)
-    loss = tf.losses.get_total_loss()
+        # Set learning rate and optimizer
+        global_step = tf.contrib.framework.get_or_create_global_step()
+        num_batches_per_epoch = cifar_input.TRAIN_SIZE / app_args.batch_size
+        lr_decay_steps = app_args.num_epochs_lr_decay * num_batches_per_epoch
+        lr = tf.train.exponential_decay(app_args.init_lr,
+                                        global_step,
+                                        lr_decay_steps,
+                                        app_args.lr_decay_factor,
+                                        staircase=True)
+        opt = tf.train.GradientDescentOptimizer(lr)
 
-    # Set learning rate and optimizer
-    num_batches_per_epoch = cifar_input.TRAIN_SIZE / app_args.batch_size
-    lr_decay_steps = app_args.num_epochs_lr_decay * num_batches_per_epoch
-    lr = tf.train.exponential_decay(app_args.init_lr, global_step,
-                                    lr_decay_steps, app_args.lr_decay_factor,
-                                    staircase=True)
-    opt = tf.train.GradientDescentOptimizer(lr)
+        # Define ops
+        init_op = tf.global_variables_initializer()
+        train_op = slim.learning.create_train_op(loss, opt)
 
-    # Build a Graph that trains the model with one batch of examples and
-    # updates the model parameters.
-    train_op = slim.learning.create_train_op(loss, opt)
+        tf.summary.scalar('Learning_rate', lr)
+        tf.summary.scalar('Loss', loss)
+        summary_op = tf.summary.merge_all()
+        summary_writer = tf.summary.FileWriter(app_args.log_dir, graph)
 
-    tf.summary.scalar('Learning_rate', lr)
-    tf.summary.scalar('Loss', loss)
+        saver = tf.train.Saver()
 
-    slim.learning.train(train_op, app_args.log_dir,
-                        number_of_steps=app_args.max_steps,
-                        save_summaries_secs=app_args.save_summary_secs,
-                        save_interval_secs=app_args.save_checkpoint_secs,
-                        log_every_n_steps=app_args.log_frequency)
+        with tf.Session() as session:
+            coordinator = tf.train.Coordinator()
+            threads = tf.train.start_queue_runners(coord=coordinator)
+
+            session.run(init_op)
+            start_time = time.time()
+            start_time_step = 0
+
+            for step in xrange(app_args.max_steps):
+                _, summary, loss_value = session.run([train_op,
+                                                      summary_op,
+                                                      loss])
+
+                with tf.device('/CPU:0'):
+                    if step % 100 == 0 and step > 0:
+                        summary_writer.add_summary(summary, step)
+
+                        secs_for_step = ((time.time() - start_time) /
+                                         (step - start_time_step))
+                        start_time = time.time()
+                        start_time_step = step
+                        print(
+                            'On step = %d, Loss = %f, Sec per step = %f' %
+                            (step, loss_value, secs_for_step))
+
+                    if step % 1000 == 0:
+                        checkpoint_file = os.path.join(app_args.log_dir,
+                                                       'model.ckpt')
+                        saver.save(session, checkpoint_file, step)
+
+            coordinator.request_stop()
+            coordinator.join(threads)
 
 
 if __name__ == '__main__':
