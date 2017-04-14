@@ -143,4 +143,5 @@ if __name__ == '__main__':
     if tf.gfile.Exists(app_args.log_dir):
         tf.gfile.DeleteRecursively(app_args.log_dir)
     tf.gfile.MakeDirs(app_args.log_dir)
+    tf.logging.set_verbosity('DEBUG')
     train(app_args)
