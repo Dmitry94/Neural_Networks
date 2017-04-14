@@ -50,7 +50,7 @@ def get_model_params():
     """
         Creating ModelParams object.
     """
-    filters_count = [64, 64]
+    filters_counts = [64, 64]
     conv_ksizes = [5]
     conv_strides = [1]
     pool_ksizes = [3]
@@ -58,7 +58,7 @@ def get_model_params():
     fc_sizes = [384, 192, cifar_input.NUM_CLASSES]
     dropouts = [0.5]
 
-    model_params = cifar_model.ModelParams(filters_count=filters_count,
+    model_params = cifar_model.ModelParams(filters_counts=filters_counts,
                                            conv_ksizes=conv_ksizes,
                                            conv_strides=conv_strides,
                                            pool_ksizes=pool_ksizes,
