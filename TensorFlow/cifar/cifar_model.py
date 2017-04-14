@@ -3,7 +3,6 @@
 """
 
 # pylint: disable=C0103
-# pylint: disable=C0330
 
 from collections import namedtuple
 
@@ -13,8 +12,7 @@ slim = tf.contrib.slim
 ModelParams = namedtuple('ModelParams', ['filters_counts',
                                          'conv_ksizes', 'conv_strides',
                                          'pool_ksizes', 'pool_strides',
-                                         'fc_sizes', 'dropouts'],
-                         verbose=True)
+                                         'fc_sizes', 'dropouts'])
 
 
 def _tensor_summary(tensor):
@@ -50,9 +48,14 @@ def conv_pool_drop_2d(in_data, filters_count, conv_ksize, conv_stride,
     """
     out = slim.conv2d(in_data, filters_count, kernel_size=conv_ksize,
                       stride=conv_stride, scope=scope + '/conv')
+    _tensor_summary(out)
+
     out = slim.max_pool2d(out, kernel_size=pool_ksize, stride=pool_stride,
                           scope=scope + '/pool')
+    _tensor_summary(out)
+
     out = slim.dropout(out, keep_prob, scope=scope + '/dropout')
+    _tensor_summary(out)
 
     return out
 
@@ -72,7 +75,10 @@ def fc_drop(in_data, fc_size, keep_prob, scope):
             Out after fc and dropout.
     """
     out = slim.fully_connected(in_data, fc_size, scope=scope + 'fc')
+    _tensor_summary(out)
+
     out = slim.dropout(out, keep_prob, scope=scope + '/dropout')
+    _tensor_summary(out)
 
     return out
 
@@ -146,6 +152,7 @@ def inference(images, model_params):
                             scope='fc_layers')
 
             net = slim.fully_connected(net, fc_sizes[-1], activation_fn=None,
-                                    scope='logits')
+                                       scope='logits')
+            _tensor_summary(net)
 
     return net

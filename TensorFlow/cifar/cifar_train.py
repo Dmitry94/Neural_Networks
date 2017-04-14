@@ -5,52 +5,20 @@
 # pylint: disable=C0103
 # pylint: disable=C0330
 
+import argparse
+
 import cifar_model
 import cifar_input
 
 import tensorflow as tf
 slim = tf.contrib.slim
 
-FLAGS = tf.app.flags.FLAGS
 
-tf.app.flags.DEFINE_string('data_dir', '../../content/ciraf/cifar-10-batches-bin',
-                           """Path to the CIFAR-10 data directory.""")
-
-tf.app.flags.DEFINE_string('train_dir', 'cifar10_train',
-                           """Directory where to write event logs and checkpoint.""")
-
-
-tf.app.flags.DEFINE_integer('max_steps', 1000000,
-                            """Number of batches to run.""")
-
-tf.app.flags.DEFINE_integer('batch_size', 128,
-                            """Number of images to process in a batch.""")
-
-
-tf.app.flags.DEFINE_float('init_lr', 0.1,
-                          """Start value for learning rate""")
-
-tf.app.flags.DEFINE_float('lr_decay_factor', 0.1,
-                          """Learning rate decay factor""")
-
-tf.app.flags.DEFINE_integer('num_epochs_lr_decay', 350,
-                            """How many epochs should processed to decay lr.""")
-
-
-tf.app.flags.DEFINE_integer('log_frequency', 10,
-                            """How often to log results to the console.""")
-
-tf.app.flags.DEFINE_integer('save_checkpoint_secs', 60 * 10,
-                            """How often to save checkpoint.""")
-
-tf.app.flags.DEFINE_integer('save_summary_secs', 60 * 5,
-                            """How often to save summary.""")
-
-def get_model_params():
+def get_model_params(app_args):
     """
         Creating ModelParams object.
     """
-    filters_counts = [64, 64]
+    filters_counts = app_args.filters_counts
     conv_ksizes = [5]
     conv_strides = [1]
     pool_ksizes = [3]
@@ -68,49 +36,119 @@ def get_model_params():
 
     return model_params
 
-def train():
+def train(app_args):
     """
       Train CIFAR-10 for a number of steps.
     """
-    with tf.Graph().as_default():
-        global_step = tf.contrib.framework.get_or_create_global_step()
+    global_step = tf.contrib.framework.get_or_create_global_step()
 
-        # Get images and labels for CIFAR-10.
-        images, labels = cifar_input.train_inputs(FLAGS.data_dir,
-                                                  FLAGS.batch_size)
+    # Get images and labels for CIFAR-10.
+    images, labels = cifar_input.train_inputs(app_args.data_dir,
+                                              app_args.batch_size)
 
-        # Build a Graph that computes the logits predictions from the
-        # inference model.
-        model_params = get_model_params()
-        logits = cifar_model.inference(images, model_params)
+    # Build a Graph that computes the logits predictions from the
+    # inference model.
+    model_params = get_model_params(app_args)
+    logits = cifar_model.inference(images, model_params)
 
-        # Calculate loss.
-        _ = slim.losses.sparse_softmax_cross_entropy(logits, labels)
-        loss = slim.losses.get_total_loss()
+    # Calculate loss.
+    _ = slim.losses.sparse_softmax_cross_entropy(logits, labels)
+    loss = slim.losses.get_total_loss()
 
-        # Set learning rate and optimizer
-        num_batches_per_epoch = cifar_input.TRAIN_SIZE / FLAGS.batch_size
-        lr_decay_steps = FLAGS.num_epochs_lr_decay * num_batches_per_epoch
-        lr = tf.train.exponential_decay(FLAGS.init_lr, global_step, lr_decay_steps,
-                                        FLAGS.lr_decay_factor, staircase=True)
-        opt = tf.train.GradientDescentOptimizer(lr)
+    # Set learning rate and optimizer
+    num_batches_per_epoch = cifar_input.TRAIN_SIZE / app_args.batch_size
+    lr_decay_steps = app_args.num_epochs_lr_decay * num_batches_per_epoch
+    lr = tf.train.exponential_decay(app_args.init_lr, global_step, lr_decay_steps,
+                                    app_args.lr_decay_factor, staircase=True)
+    opt = tf.train.GradientDescentOptimizer(lr)
 
-        # Build a Graph that trains the model with one batch of examples and
-        # updates the model parameters.
-        train_op = slim.learning.create_train_op(loss, opt)
+    # Build a Graph that trains the model with one batch of examples and
+    # updates the model parameters.
+    train_op = slim.learning.create_train_op(loss, opt)
 
-        tf.summary.scalar('Learning rate', lr)
-        tf.summary.scalar('Loss', loss)
+    tf.summary.scalar('Learning rate', lr)
+    tf.summary.scalar('Loss', loss)
 
-        slim.learning.train(train_op, FLAGS.train_dir,
-                            number_of_steps=FLAGS.max_steps,
-                            save_summaries_secs=FLAGS.save_summary_secs,
-                            save_interval_secs=FLAGS.save_checkpoint_secs,
-                            log_every_n_steps=FLAGS.log_frequency)
+    slim.learning.train(train_op, app_args.log_dir,
+                        number_of_steps=app_args.max_steps,
+                        save_summaries_secs=app_args.save_summary_secs,
+                        save_interval_secs=app_args.save_checkpoint_secs,
+                        log_every_n_steps=app_args.log_frequency)
 
 
 if __name__ == '__main__':
-    if tf.gfile.Exists(FLAGS.train_dir):
-        tf.gfile.DeleteRecursively(FLAGS.train_dir)
-    tf.gfile.MakeDirs(FLAGS.train_dir)
-    train()
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--data_dir',
+                        help='Path to the data directory',
+                        default='../../content/ciraf/cifar-10-batches-bin')
+
+    parser.add_argument('--log_dir',
+                        help='Path to the directory, where log will be written',
+                        default='cifar10_train')
+
+    parser.add_argument('--max_steps', type=int,
+                        help='Number of batches to run',
+                        default=1000000)
+
+    parser.add_argument('--batch_size', type=int,
+                        help='Number of images to process in a batch',
+                        default=128)
+
+    parser.add_argument('--init_lr', type=float,
+                            help='Start value for learning rate',
+                            default=0.1)
+
+    parser.add_argument('--lr_decay_factor', type=float,
+                            help='Learning rate decay factor',
+                            default=0.1)
+
+    parser.add_argument('--num_epochs_lr_decay', type=int,
+                        help='How many epochs should processed to decay lr',
+                        default=350)
+
+    parser.add_argument('--log_frequency', type=int,
+                        help='How often to log results to the console',
+                        default=10)
+
+    parser.add_argument('--save_checkpoint_secs', type=int,
+                        help='How often to save checkpoint',
+                        default=60 * 10)
+
+    parser.add_argument('--save_summary_secs', type=int,
+                        help='How often to save summary',
+                        default=60 * 5)
+
+    parser.add_argument('--filters_counts', nargs='+', type=int,
+                        help='List of filter counts for each conv layer',
+                        default=[64, 64])
+
+    parser.add_argument('--conv_ksizes', nargs='+', type=int,
+                        help='List of filter counts for each conv layer',
+                        default=[64, 64])
+
+    parser.add_argument('--conv_strides', nargs='+', type=int,
+                        help='List of filter counts for each conv layer',
+                        default=[64, 64])
+
+    parser.add_argument('--pool_ksizes', nargs='+', type=int,
+                        help='List of filter counts for each conv layer',
+                        default=[64, 64])
+
+    parser.add_argument('--pool_strides', nargs='+', type=int,
+                        help='List of filter counts for each conv layer',
+                        default=[64, 64])
+
+    parser.add_argument('--fc_sizes', nargs='+', type=int,
+                        help='List of filter counts for each conv layer',
+                        default=[64, 64])
+
+    parser.add_argument('--dropouts', nargs='+', type=int,
+                        help='List of filter counts for each conv layer',
+                        default=[64, 64])
+
+    app_args = parser.parse_args()
+
+    if tf.gfile.Exists(app_args.log_dir):
+        tf.gfile.DeleteRecursively(app_args.log_dir)
+    tf.gfile.MakeDirs(app_args.log_dir)
+    train(app_args)
