@@ -75,14 +75,12 @@ def train(app_args):
 
             session.run(init_op)
             start_time = time.time()
-            start_time_step = 0
 
             for step in xrange(app_args.max_steps):
-                _, summary, loss_value = session.run([train_op,
-                                                      summary_op,
-                                                      loss])
+                _, loss_value = session.run([train_op, loss])
 
                 if step % app_args.save_summary_steps == 0 and step > 0:
+                    summary = session.run(summary_op)
                     summary_writer.add_summary(summary, step)
                     current_time = time.time()
                     duration = current_time - start_time
