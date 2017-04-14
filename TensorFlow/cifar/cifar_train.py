@@ -75,7 +75,7 @@ if __name__ == '__main__':
                         default='../../content/ciraf/cifar-10-batches-bin')
 
     parser.add_argument('--log_dir',
-                        help='Path to the directory, where log will be written',
+                        help='Path to the directory, where log will write',
                         default='cifar10_train')
 
     parser.add_argument('--max_steps', type=int,
