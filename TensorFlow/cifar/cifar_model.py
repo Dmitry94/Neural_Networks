@@ -139,22 +139,21 @@ def inference(images, model_params):
     if len(drop_rates) < dropouts_count:
         drop_rates.extend([1e-15] * (dropouts_count - len(drop_rates)))
 
-    with tf.device('/CPU:0'):
-        with slim.arg_scope([slim.conv2d, slim.fully_connected],
-                            activation_fn=tf.nn.relu,
-                            weights_initializer=slim.xavier_initializer()):
-            net = slim.stack(images, conv_pool_drop_2d, zip(
-                filters_counts, conv_ksizes, conv_strides, pool_ksizes,
-                pool_strides, drop_rates[0:conv_layers_count]),
-                             scope='conv_layers')
+    with slim.arg_scope([slim.conv2d, slim.fully_connected],
+                        activation_fn=tf.nn.relu,
+                        weights_initializer=slim.xavier_initializer()):
+        net = slim.stack(images, conv_pool_drop_2d, zip(
+            filters_counts, conv_ksizes, conv_strides, pool_ksizes,
+            pool_strides, drop_rates[0:conv_layers_count]),
+                            scope='conv_layers')
 
-            net = tf.reshape(net, [images.get_shape()[0].value, -1])
-            net = slim.stack(net, fc_drop, zip(fc_sizes[:len(fc_sizes) - 1],
-                                               drop_rates[conv_layers_count:]),
-                             scope='fc_layers')
+        net = tf.reshape(net, [images.get_shape()[0].value, -1])
+        net = slim.stack(net, fc_drop, zip(fc_sizes[:len(fc_sizes) - 1],
+                                           drop_rates[conv_layers_count:]),
+                         scope='fc_layers')
 
-            net = slim.fully_connected(net, fc_sizes[-1], activation_fn=None,
-                                       scope='logits')
-            _tensor_summary(net)
+        net = slim.fully_connected(net, fc_sizes[-1], activation_fn=None,
+                                   scope='logits')
+        _tensor_summary(net)
 
     return net
