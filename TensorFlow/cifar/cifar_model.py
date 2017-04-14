@@ -2,17 +2,15 @@
     Cifar10 Network model.
 """
 
-# pylint: disable=C0103
-
 from collections import namedtuple
 
 import tensorflow as tf
-slim = tf.contrib.slim
+from tensorflow.contrib import slim
 
 ModelParams = namedtuple('ModelParams', ['filters_counts',
                                          'conv_ksizes', 'conv_strides',
                                          'pool_ksizes', 'pool_strides',
-                                         'fc_sizes', 'dropouts'])
+                                         'fc_sizes', 'drop_rates'])
 
 
 def _tensor_summary(tensor):
@@ -27,8 +25,9 @@ def _tensor_summary(tensor):
     tf.summary.scalar(tensor_name + '/sparsity',
                       tf.nn.zero_fraction(tensor))
 
+
 def conv_pool_drop_2d(in_data, filters_count, conv_ksize, conv_stride,
-                      pool_ksize, pool_stride, keep_prob, scope):
+                      pool_ksize, pool_stride, drop_rate, scope):
     """
         Creating three layers: conv, max_pool, dropout.
 
@@ -39,27 +38,29 @@ def conv_pool_drop_2d(in_data, filters_count, conv_ksize, conv_stride,
             conv_stride: conv stride
             pool_ksize: pool kernel size
             pool_stride: pool stride
-            keep_prob: probability of that neuron is active
+            drop_rate: probability of that neuron is active
             scope: scope name
 
         Returns:
         -------
             Out after conv, max pool and drop.
     """
-    out = slim.conv2d(in_data, filters_count, kernel_size=conv_ksize,
-                      stride=conv_stride, scope=scope + '/conv')
+    out = tf.layers.conv2d(in_data, filters_count, kernel_size=conv_ksize,
+                           strides=conv_stride, name=scope + '/conv')
     _tensor_summary(out)
 
-    out = slim.max_pool2d(out, kernel_size=pool_ksize, stride=pool_stride,
-                          scope=scope + '/pool')
+    out = tf.layers.max_pooling2d(out, pool_size=pool_ksize,
+                                  strides=pool_stride,
+                                  name=scope + '/pool')
     _tensor_summary(out)
 
-    out = slim.dropout(out, keep_prob, scope=scope + '/dropout')
+    out = tf.layers.dropout(out, rate=drop_rate, name=scope + '/dropout')
     _tensor_summary(out)
 
     return out
 
-def fc_drop(in_data, fc_size, keep_prob, scope):
+
+def fc_drop(in_data, fc_size, drop_rate, scope):
     """
         Creates two layers: full connected and dropout.
 
@@ -67,7 +68,7 @@ def fc_drop(in_data, fc_size, keep_prob, scope):
         -------
             in_data: input tensor of data
             fc_size: size of full connected layer
-            keep_prob: probability of that neuron is active
+            drop_rate: probability of that neuron is active
             scope: scope name
 
         Returns:
@@ -77,7 +78,7 @@ def fc_drop(in_data, fc_size, keep_prob, scope):
     out = slim.fully_connected(in_data, fc_size, scope=scope + 'fc')
     _tensor_summary(out)
 
-    out = slim.dropout(out, keep_prob, scope=scope + '/dropout')
+    out = tf.layers.dropout(out, rate=drop_rate, name=scope + '/dropout')
     _tensor_summary(out)
 
     return out
@@ -102,7 +103,7 @@ def inference(images, model_params):
     pool_ksizes = model_params.pool_ksizes
     pool_strides = model_params.pool_strides
     fc_sizes = model_params.fc_sizes
-    dropouts = model_params.dropouts
+    drop_rates = model_params.drop_rates
 
     if not filters_counts:
         raise ValueError("List of convolutional layers filters is empty!")
@@ -115,41 +116,42 @@ def inference(images, model_params):
 
     conv_layers_count = len(filters_counts)
     if len(conv_ksizes) < conv_layers_count:
-        conv_ksizes.extend([conv_ksizes[-1]] * (conv_layers_count - len(conv_ksizes)))
+        conv_ksizes.extend([conv_ksizes[-1]] *
+                           (conv_layers_count - len(conv_ksizes)))
 
     if not conv_strides:
         conv_strides = [1] * conv_layers_count
     elif len(conv_strides) < conv_layers_count:
-        conv_strides.extend([conv_strides[-1]] * (conv_layers_count - len(conv_strides)))
+        conv_strides.extend([conv_strides[-1]] *
+                            (conv_layers_count - len(conv_strides)))
 
     if len(pool_ksizes) < conv_layers_count:
-        pool_ksizes.extend([pool_ksizes[-1]] * (conv_layers_count - len(pool_ksizes)))
+        pool_ksizes.extend([pool_ksizes[-1]] *
+                           (conv_layers_count - len(pool_ksizes)))
 
     if not pool_strides:
         pool_strides = pool_ksizes
     elif len(pool_strides) < conv_layers_count:
-        pool_strides.extend([pool_strides[-1]] * (conv_layers_count - len(pool_strides)))
+        pool_strides.extend([pool_strides[-1]] *
+                            (conv_layers_count - len(pool_strides)))
 
     dropouts_count = conv_layers_count + len(fc_sizes) - 1
-    if len(dropouts) < dropouts_count:
-        dropouts.extend([1] * (dropouts_count - len(dropouts)))
+    if len(drop_rates) < dropouts_count:
+        drop_rates.extend([1e-15] * (dropouts_count - len(drop_rates)))
 
     with tf.device('/CPU:0'):
         with slim.arg_scope([slim.conv2d, slim.fully_connected],
                             activation_fn=tf.nn.relu,
                             weights_initializer=slim.xavier_initializer()):
-            net = slim.stack(images, conv_pool_drop_2d, zip(filters_counts,
-                                                            conv_ksizes,
-                                                            conv_strides,
-                                                            pool_ksizes,
-                                                            pool_strides,
-                                                            dropouts[0:conv_layers_count]),
-                            scope='conv_layers')
+            net = slim.stack(images, conv_pool_drop_2d, zip(
+                filters_counts, conv_ksizes, conv_strides, pool_ksizes,
+                pool_strides, drop_rates[0:conv_layers_count]),
+                             scope='conv_layers')
 
             net = tf.reshape(net, [images.get_shape()[0].value, -1])
             net = slim.stack(net, fc_drop, zip(fc_sizes[:len(fc_sizes) - 1],
-                                            dropouts[conv_layers_count:]),
-                            scope='fc_layers')
+                                               drop_rates[conv_layers_count:]),
+                             scope='fc_layers')
 
             net = slim.fully_connected(net, fc_sizes[-1], activation_fn=None,
                                        scope='logits')
