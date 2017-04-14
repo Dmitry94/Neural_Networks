@@ -34,8 +34,9 @@ def train(app_args):
     global_step = tf.contrib.framework.get_or_create_global_step()
 
     # Get images and labels for CIFAR-10.
-    images, labels = cifar_input.train_inputs(app_args.data_dir,
-                                              app_args.batch_size)
+    with tf.device('/CPU:0'):
+        images, labels = cifar_input.train_inputs(app_args.data_dir,
+                                                  app_args.batch_size)
 
     # Build a Graph that computes the logits predictions from the
     # inference model.

@@ -151,5 +151,3 @@ def get_cifar10_input(data_dir, batch_size, image_size, is_test):
 
     return _generate_batch(float_image, records.label,
                            min_queue_size, batch_size, False)
-
-    
