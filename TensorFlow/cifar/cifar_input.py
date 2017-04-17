@@ -19,9 +19,10 @@ import tensorflow as tf
 NUM_CLASSES = 10
 TRAIN_SIZE = 50000
 TEST_SIZE = 10000
+IM_SIZE = 24
 
 
-def train_inputs(data_dir, batch_size, image_size=24):
+def train_inputs(data_dir, batch_size, image_size=IM_SIZE):
     """
         Get train inputs
     """
@@ -29,7 +30,7 @@ def train_inputs(data_dir, batch_size, image_size=24):
                              image_size, False)
 
 
-def test_inputs(data_dir, batch_size, image_size=24):
+def test_inputs(data_dir, batch_size, image_size=IM_SIZE):
     """
         Get test inputs
     """
