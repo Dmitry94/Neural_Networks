@@ -14,6 +14,7 @@ ModelParams = namedtuple('ModelParams', ['filters_counts',
                                          'conv_ksizes', 'conv_strides',
                                          'pool_ksizes', 'pool_strides',
                                          'fc_sizes', 'drop_rates'])
+data_format = 'channels_first'
 
 
 def _tensor_summary(tensor):
@@ -49,7 +50,8 @@ def conv_pool_drop_2d(in_data, filters_count, conv_ksize, conv_stride,
             Out after conv, max pool and drop.
     """
     out = tf.layers.conv2d(in_data, filters_count, kernel_size=conv_ksize,
-                           strides=conv_stride, name=scope + '/conv')
+                           strides=conv_stride,
+                           data_format=data_format, name=scope + '/conv')
     _tensor_summary(out)
     if not isinstance(conv_ksize, list):
         conv_ksize = [conv_ksize, conv_ksize]
@@ -65,6 +67,7 @@ def conv_pool_drop_2d(in_data, filters_count, conv_ksize, conv_stride,
 
     out = tf.layers.max_pooling2d(out, pool_size=pool_ksize,
                                   strides=pool_stride,
+                                  data_format=data_format,
                                   name=scope + '/pool')
     _tensor_summary(out)
     print('Pool layer: shape = ', out.get_shape(),

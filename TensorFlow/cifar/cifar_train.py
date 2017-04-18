@@ -51,11 +51,14 @@ class Cifar10DataManager(object):
         data_batch /= 255.0
         labels_batch = labels_batch.astype(np.int32)
 
+        data_batch = np.transpose(data_batch, axes=[0, 3, 1, 2])
+
         return data_batch, labels_batch
 
     def next_batch_direct(self):
         """
-            Return next batch. Cyclic.
+            Return next batch using read_direct method from h5py.
+            Cyclic.
         """
         margin = (32 - cifar_input.IM_SIZE) / 2
         data_sel = np.s_[self.i * self.batch_size:
@@ -99,9 +102,9 @@ def train(app_args):
                                  train_hdf5["labels"])
     with tf.Graph().as_default() as graph:
         # Get images and labels for CIFAR-10.
-        images = tf.placeholder(tf.float32, [app_args.batch_size,
+        images = tf.placeholder(tf.float32, [app_args.batch_size, 3,
                                              cifar_input.IM_SIZE,
-                                             cifar_input.IM_SIZE, 3])
+                                             cifar_input.IM_SIZE])
         labels = tf.placeholder(tf.int32, [app_args.batch_size])
 
         # Build a Graph that computes the logits predictions

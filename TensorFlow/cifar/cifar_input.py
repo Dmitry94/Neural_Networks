@@ -99,7 +99,7 @@ def _generate_batch(image, label, min_queue_size,
     num_of_threads = 16
     if is_shuffle:
         images, labels = tf.train.shuffle_batch(
-            [image, label], batch_size, 
+            [image, label], batch_size,
             capacity=min_queue_size + 3 * batch_size,
             min_after_dequeue=min_queue_size, num_threads=num_of_threads)
     else:
