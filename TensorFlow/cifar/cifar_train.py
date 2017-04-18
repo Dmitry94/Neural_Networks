@@ -39,7 +39,7 @@ class Cifar10DataManager(object):
                                                      cifar_input.IM_SIZE, 3])
         self.labels_pl = tf.placeholder(tf.int32, [batch_size])
         if self.data_format == 'NCHW':
-            self.images_pl = tf.transpose(self.image, [0, 3, 1, 2])
+            self.images_pl = tf.transpose(self.images_pl, [0, 3, 1, 2])
         self.queue = tf.FIFOQueue(queue_size,
                                   [self.images_pl.dtype, self.labels_pl.dtype],
                                   [self.images_pl.get_shape(),
