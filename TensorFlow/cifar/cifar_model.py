@@ -188,6 +188,7 @@ def inference(images, model_params):
         logits = slim.fully_connected(net, fc_sizes[-1], activation_fn=None,
                                       scope='logits')
         _tensor_summary(logits)
+        tf.add_to_collection('logits', logits)
         params_count = fc_sizes[-1] * net.get_shape()[-1].value
         print('Fully connected layer: shape = ', logits.get_shape(),
               ' size = ', fc_sizes[-1],

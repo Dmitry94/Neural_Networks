@@ -5,94 +5,131 @@
 # pylint: disable=C0103
 # pylint: disable=C0330
 
+from __future__ import absolute_import
+from __future__ import print_function
+from __future__ import division
+
+import argparse
 import math
+import os
+import time
+import h5py
+import datetime
+import numpy as np
 
 import cifar_model
 import cifar_input
-
 import tensorflow as tf
-slim = tf.contrib.slim
 
 
-FLAGS = tf.app.flags.FLAGS
-
-tf.app.flags.DEFINE_string('data_dir', '../../content/ciraf/cifar-10-batches-bin',
-                           """Path to the CIFAR-10 data directory.""")
-
-tf.app.flags.DEFINE_string('test_dir', 'cifar10_eval',
-                           "Directory for summary")
-
-tf.app.flags.DEFINE_string('check_pnt_dir', 'cifar10_train',
-                           "Directory, where checkpoint stores")
-
-
-tf.app.flags.DEFINE_integer('batch_size', 128,
-                            """Number of images to process in a batch.""")
-
-
-tf.app.flags.DEFINE_integer('eval_interval', 60,
-                            "Evaluating interval in seconds")
-
-tf.app.flags.DEFINE_bool('eval_once', None,
-                         "Evaluate once or with some interval?")
-
-
-def get_model_params():
+def eval_once(app_args, saver, summary_writer, summary_op):
     """
-        Creating ModelParams object.
+        Run Eval once.
+        Args:
+        saver: Saver.
+        summary_writer: Summary writer.
+        top_k_op: Top K op.
+        summary_op: Summary op.
     """
-    conv_layer1 = cifar_model.Conv2dParams(ksize=5, stride=1, filters_count=64)
-    conv_layer2 = cifar_model.Conv2dParams(ksize=5, stride=1, filters_count=64)
-    conv_params = cifar_model.Conv2dLayersParams(layers=[conv_layer1, conv_layer2],
-                                                 rl=0.0, act_fn=tf.nn.relu)
+    train_hdf5 = h5py.File(app_args.data_file, "r")
+    coord = tf.train.Coordinator()
+    manager = cifar_input.Cifar10DataManager(
+        app_args.batch_size, train_hdf5["data"], train_hdf5["labels"],
+        coord, app_args.data_format)
+    with tf.device('/CPU:0'):
+        images, labels = manager.dequeue()
 
-    pool_layer1 = cifar_model.Pool2dParams(ksize=3, stride=2)
-    pool_layer2 = cifar_model.Pool2dParams(ksize=3, stride=2)
-    pool_params = [pool_layer1, pool_layer2]
+    logits = tf.get_collection('logits')[0]
+    top_k_op = tf.nn.in_top_k(logits, labels, 1)
 
-    fc_params = cifar_model.FullyConLayersParams(sizes=[384, 192, cifar_input.NUM_CLASSES],
-                                                 rl=0.004, act_fn=tf.nn.relu)
+    with tf.Session() as sess:
+        ckpt = tf.train.get_checkpoint_state(app_args.checkpoint_dir)
+        if ckpt and ckpt.model_checkpoint_path:
+            saver.restore(sess, ckpt.model_checkpoint_path)
+            global_step = tf.train.get_global_step()
+        else:
+            print('No checkpoint in this directory')
+            return
 
-    model_params = cifar_model.ModelParams(conv_params=conv_params,
-                                           pool_params=pool_params,
-                                           fc_params=fc_params)
+        threads = manager.start_threads(sess)
+        num_iter = int(math.ceil(app_args.samples_count / app_args.batch_size))
+        true_count = 0
+        total_sample_count = num_iter * app_args.batch_size
+        step = 0
+        while step < num_iter and not coord.should_stop():
+            predictions = sess.run([top_k_op], feed_dict={'images:0': images,
+                                                          'labels:0': labels})
+            true_count += np.sum(predictions)
+            step += 1
 
-    return model_params
+        # Compute precision @ 1.
+        precision = true_count / total_sample_count
+        print('%s: precision @ 1 = %.3f' % (datetime.now(), precision))
 
-def evaluate():
-    """
-        Evaluate net on CIFAR10 Test set.
-    """
-    images, labels = cifar_input.test_inputs(FLAGS.data_dir, FLAGS.batch_size)
-    logits = cifar_model.inference(images, cifar_input.NUM_CLASSES)
-    logits = tf.argmax(logits, axis=1)
-    logits = tf.cast(logits, tf.int32)
+        summary = tf.Summary()
+        summary.ParseFromString(sess.run(summary_op))
+        summary.value.add(tag='Precision', simple_value=precision)
+        summary_writer.add_summary(summary, global_step)
 
-    names_to_values, names_to_updates = slim.metrics.aggregate_metric_map({
-        'accuracy': slim.metrics.accuracy(logits, labels)
-    })
-    summary_ops = []
-    for metric_name, metric_value in names_to_values.iteritems():
-        op = tf.summary.scalar(metric_name, metric_value)
-        op = tf.Print(op, [metric_value], metric_name)
-        summary_ops.append(op)
+        coord.request_stop()
+        coord.join(threads, stop_grace_period_secs=10)
 
-    num_iter = int(math.ceil(cifar_input.TEST_SIZE / FLAGS.batch_size))
 
-    slim.evaluation.evaluation_loop(
-        'local',
-        FLAGS.check_pnt_dir,
-        FLAGS.test_dir,
-        num_evals=num_iter,
-        eval_op=names_to_updates.values(),
-        summary_op=tf.summary.merge(summary_ops),
-        max_number_of_evaluations=FLAGS.eval_once,
-        eval_interval_secs=FLAGS.eval_interval)
+def evaluate(app_args):
+    graph_path = ""
+    for file in os.listdir(app_args.checkpoint_dir):
+        if file.endswith(".meta"):
+            if file > graph_path:
+                graph_path = file
+    graph_path = os.path.join(app_args.checkpoint_dir, graph_path)
 
+    with tf.Graph().as_default() as graph:
+        saver = tf.train.import_meta_graph(graph_path)
+
+        summary_op = tf.summary.merge_all()
+        summary_writer = tf.summary.FileWriter(app_args.log_dir, graph)
+
+        while True:
+            eval_once(app_args, saver, summary_writer, summary_op)
+            if app_args.eval_once:
+                break
+            else:
+                time.sleep(app_args.eval_interval)
 
 
 if __name__ == '__main__':
-    if tf.gfile.Exists(FLAGS.test_dir):
-        tf.gfile.DeleteRecursively(FLAGS.test_dir)
-    tf.gfile.MakeDirs(FLAGS.test_dir)
-    evaluate()
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--data-file',
+                        help='Path to the data directory',
+                        default='../../content/ciraf/hdf5/train.hdf5')
+
+    parser.add_argument('--log-dir',
+                        help='Path to the directory, where log will write',
+                        default='cifar10_eval')
+
+    parser.add_argument('--checkpoint-dir',
+                        help='Path to the directory, where checkpoint stores',
+                        default='cifar10_train')
+
+    parser.add_argument('--batch-size', type=int,
+                        help='Number of images to process in a batch',
+                        default=128)
+
+    parser.add_argument('--samples-count', type=int,
+                        help='Number of images to process at all',
+                        default=128)
+
+    parser.add_argument('--eval-interval', type=int,
+                        help='How often to evaluate',
+                        default=60 * 10)
+
+    parser.add_argument('--data-format',
+                        help="Data format: NCHW or NHWC",
+                        default='NHWC')
+
+    app_args = parser.parse_args()
+    if tf.gfile.Exists(app_args.log_dir):
+        tf.gfile.DeleteRecursively(app_args.log_dir)
+    tf.gfile.MakeDirs(app_args.log_dir)
+    tf.logging.set_verbosity('DEBUG')
+    evaluate(app_args)

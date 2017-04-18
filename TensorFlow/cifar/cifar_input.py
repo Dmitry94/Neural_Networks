@@ -8,21 +8,94 @@
 # pylint: disable=C0111
 # pylint: disable=W0201
 
-from __future__ import print_function
-from __future__ import absolute_import
-from __future__ import division
-
 import os
 import tensorflow as tf
 
-# Global constants describing the CIFAR-10 data set.
-NUM_CLASSES = 10
-TRAIN_SIZE = 50000
-TEST_SIZE = 10000
-IM_SIZE = 24
+import multiprocessing
+import threading
+import numpy as np
 
 
-def train_inputs(data_dir, batch_size, image_size=IM_SIZE):
+class Cifar10DataManager(object):
+    """
+        Class for cifar10 data managment.
+    """
+    NUM_CLASSES = 10
+    TRAIN_SIZE = 50000
+    TEST_SIZE = 10000
+    IM_SIZE = 24
+
+    def __init__(self, batch_size, data, labels,
+                 coord, data_format, queue_size=32):
+        self.batch_size = batch_size
+        self.data = data
+        self.labels = labels
+        self.i = 0
+        self.lock = threading.Lock()
+        self.batches_count = data.shape[0] / batch_size
+        self.data_format = data_format
+
+        # Init queue parameters
+        self.images_pl = tf.placeholder(tf.float32, [
+            batch_size, Cifar10DataManager.IM_SIZE,
+            Cifar10DataManager.IM_SIZE, 3], name='images')
+        self.labels_pl = tf.placeholder(tf.int32, [batch_size], name='labels')
+        if self.data_format == 'NCHW':
+            self.images_pl = tf.transpose(self.images_pl, [0, 3, 1, 2])
+        self.queue = tf.FIFOQueue(queue_size,
+                                  [self.images_pl.dtype, self.labels_pl.dtype],
+                                  [self.images_pl.get_shape(),
+                                   self.labels_pl.get_shape()])
+        self.threads = []
+        self.coord = coord
+        self.enqueue_op = self.queue.enqueue([self.images_pl, self.labels_pl])
+
+    def next_batch(self):
+        """
+            Return next batch. Cyclic.
+        """
+        selection = np.s_[self.i * self.batch_size:
+                          (self.i + 1) * self.batch_size]
+        with self.lock:
+            self.i = (self.i + 1) % self.batches_count
+
+        margin = (32 - Cifar10DataManager.IM_SIZE) / 2
+        data_batch = self.data[selection, margin:32 - margin,
+                               margin:32 - margin]
+        labels_batch = self.labels[selection]
+
+        data_batch = data_batch.astype(np.float32)
+        data_batch -= np.mean(data_batch)
+        data_batch /= 255.0
+        labels_batch = labels_batch.astype(np.int32)
+
+        if self.data_format == 'NCHW':
+            data_batch = np.transpose(data_batch, axes=[0, 3, 1, 2])
+        return data_batch, labels_batch
+
+    def size(self):
+        return self.queue.size()
+
+    def dequeue(self):
+        output = self.queue.dequeue()
+        return output
+
+    def thread_main(self, session):
+        while not self.coord.should_stop():
+            data, labels = self.next_batch()
+            session.run(self.enqueue_op, feed_dict={self.images_pl: data,
+                                                    self.labels_pl: labels})
+
+    def start_threads(self, session, n_threads=multiprocessing.cpu_count()):
+        for _ in range(n_threads):
+            thread = threading.Thread(target=self.thread_main, args=(session,))
+            thread.daemon = True  # Thread will close when parent quits.
+            thread.start()
+            self.threads.append(thread)
+        return self.threads
+
+
+def train_inputs(data_dir, batch_size, image_size=Cifar10DataManager.IM_SIZE):
     """
         Get train inputs
     """
@@ -30,7 +103,7 @@ def train_inputs(data_dir, batch_size, image_size=IM_SIZE):
                              image_size, False)
 
 
-def test_inputs(data_dir, batch_size, image_size=IM_SIZE):
+def test_inputs(data_dir, batch_size, image_size=Cifar10DataManager.IM_SIZE):
     """
         Get test inputs
     """
@@ -73,7 +146,8 @@ def read_cifar10(filename_queue):
     # Slice takes from begin_index to end_index
     result.label = tf.cast(tf.slice(record, [0], [label_bytes]), tf.int32)
     raw_image = tf.slice(record, [label_bytes], [image_bytes])
-    result.image = tf.reshape(raw_image, [result.depth, result.height, result.width])
+    result.image = tf.reshape(raw_image,
+                              [result.depth, result.height, result.width])
     result.image = tf.transpose(result.image, [1, 2, 0])
 
     return result
@@ -130,11 +204,11 @@ def get_cifar10_input(data_dir, batch_size, image_size, is_test):
     """
     if is_test:
         filenames = [os.path.join(data_dir, 'test_batch.bin')]
-        num_examples_per_epoch = TEST_SIZE
+        num_examples_per_epoch = Cifar10DataManager.TEST_SIZE
     else:
         filenames = [os.path.join(data_dir, 'data_batch_%d.bin' % i)
                      for i in xrange(1, 6)]
-        num_examples_per_epoch = TRAIN_SIZE
+        num_examples_per_epoch = Cifar10DataManager.TRAIN_SIZE
 
     for f in filenames:
         if not tf.gfile.Exists(f):

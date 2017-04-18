@@ -6,91 +6,12 @@ import os
 import argparse
 import time
 import h5py
-import threading
-import numpy as np
 
 import cifar_model
 import cifar_input
 
 import tensorflow as tf
 from tensorflow.contrib import slim
-import multiprocessing
-
-train_hdf5 = h5py.File("../../content/ciraf/hdf5/train.hdf5", "r")
-
-
-class Cifar10DataManager(object):
-    """
-        Class for cifar10 data managment.
-    """
-    def __init__(self, batch_size, data, labels,
-                 coord, data_format, queue_size=32):
-        self.batch_size = batch_size
-        self.data = data
-        self.labels = labels
-        self.i = 0
-        self.lock = threading.Lock()
-        self.batches_count = data.shape[0] / batch_size
-        self.data_format = data_format
-
-        # Init queue parameters
-        self.images_pl = tf.placeholder(tf.float32, [batch_size,
-                                                     cifar_input.IM_SIZE,
-                                                     cifar_input.IM_SIZE, 3])
-        self.labels_pl = tf.placeholder(tf.int32, [batch_size])
-        if self.data_format == 'NCHW':
-            self.images_pl = tf.transpose(self.images_pl, [0, 3, 1, 2])
-        self.queue = tf.FIFOQueue(queue_size,
-                                  [self.images_pl.dtype, self.labels_pl.dtype],
-                                  [self.images_pl.get_shape(),
-                                   self.labels_pl.get_shape()])
-        self.threads = []
-        self.coord = coord
-        self.enqueue_op = self.queue.enqueue([self.images_pl, self.labels_pl])
-
-    def next_batch(self):
-        """
-            Return next batch. Cyclic.
-        """
-        selection = np.s_[self.i * self.batch_size:
-                          (self.i + 1) * self.batch_size]
-        with self.lock:
-            self.i = (self.i + 1) % self.batches_count
-
-        margin = (32 - cifar_input.IM_SIZE) / 2
-        data_batch = self.data[selection, margin:32 - margin,
-                               margin:32 - margin]
-        labels_batch = self.labels[selection]
-
-        data_batch = data_batch.astype(np.float32)
-        data_batch -= np.mean(data_batch)
-        data_batch /= 255.0
-        labels_batch = labels_batch.astype(np.int32)
-
-        if self.data_format == 'NCHW':
-            data_batch = np.transpose(data_batch, axes=[0, 3, 1, 2])
-        return data_batch, labels_batch
-
-    def size(self):
-        return self.queue.size()
-
-    def dequeue(self):
-        output = self.queue.dequeue()
-        return output
-
-    def thread_main(self, session):
-        while not self.coord.should_stop():
-            data, labels = self.next_batch()
-            session.run(self.enqueue_op, feed_dict={self.images_pl: data,
-                                                    self.labels_pl: labels})
-
-    def start_threads(self, session, n_threads=multiprocessing.cpu_count()):
-        for _ in range(n_threads):
-            thread = threading.Thread(target=self.thread_main, args=(session,))
-            thread.daemon = True  # Thread will close when parent quits.
-            thread.start()
-            self.threads.append(thread)
-        return self.threads
 
 
 def get_model_params(app_args):
@@ -119,11 +40,12 @@ def train(app_args):
       Train CIFAR-10 for a number of steps.
     """
 
+    train_hdf5 = h5py.File(app_args.data_file, "r")
     with tf.Graph().as_default() as graph:
         coordinator = tf.train.Coordinator()
-        manager = Cifar10DataManager(app_args.batch_size,
-                                     train_hdf5["data"], train_hdf5["labels"],
-                                     coordinator, app_args.data_format)
+        manager = cifar_input.Cifar10DataManager(
+            app_args.batch_size, train_hdf5["data"], train_hdf5["labels"],
+            coordinator, app_args.data_format)
 
         # Build a Graph that computes the logits predictions
         model_params = get_model_params(app_args)
@@ -137,7 +59,8 @@ def train(app_args):
 
         # Set learning rate and optimizer
         global_step = tf.contrib.framework.get_or_create_global_step()
-        num_batches_per_epoch = cifar_input.TRAIN_SIZE / app_args.batch_size
+        num_batches_per_epoch = (cifar_input.Cifar10DataManager.TRAIN_SIZE /
+                                 app_args.batch_size)
         lr_decay_steps = app_args.num_epochs_lr_decay * num_batches_per_epoch
         lr = tf.train.exponential_decay(app_args.init_lr,
                                         global_step,
@@ -201,9 +124,9 @@ def train(app_args):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('--data-dir',
+    parser.add_argument('--data-file',
                         help='Path to the data directory',
-                        default='../../content/ciraf/cifar-10-batches-bin')
+                        default='../../content/ciraf/hdf5/train.hdf5')
 
     parser.add_argument('--log-dir',
                         help='Path to the directory, where log will write',
@@ -263,7 +186,8 @@ if __name__ == '__main__':
 
     parser.add_argument('--fc-sizes', nargs='+', type=int,
                         help='List of sizes for each fc layer',
-                        default=[384, 192, cifar_input.NUM_CLASSES])
+                        default=[384, 192,
+                                 cifar_input.Cifar10DataManager.NUM_CLASSES])
 
     parser.add_argument('--drop-rates', nargs='+', type=int,
                         help="List of probs for each conv and fc layer",
