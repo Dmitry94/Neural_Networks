@@ -13,8 +13,8 @@ total_params_count = 0
 ModelParams = namedtuple('ModelParams', ['filters_counts',
                                          'conv_ksizes', 'conv_strides',
                                          'pool_ksizes', 'pool_strides',
-                                         'fc_sizes', 'drop_rates'])
-data_format = 'channels_first'
+                                         'fc_sizes', 'drop_rates',
+                                         'data_format'])
 
 
 def _tensor_summary(tensor):
@@ -31,7 +31,7 @@ def _tensor_summary(tensor):
 
 
 def conv_pool_drop_2d(in_data, filters_count, conv_ksize, conv_stride,
-                      pool_ksize, pool_stride, drop_rate, scope):
+                      pool_ksize, pool_stride, drop_rate, data_format, scope):
     """
         Creating three layers: conv, max_pool, dropout.
 
@@ -43,6 +43,7 @@ def conv_pool_drop_2d(in_data, filters_count, conv_ksize, conv_stride,
             pool_ksize: pool kernel size
             pool_stride: pool stride
             drop_rate: probability of that neuron is active
+            data_format: NCHW or NHWC
             scope: scope name
 
         Returns:
@@ -133,6 +134,7 @@ def inference(images, model_params):
     pool_strides = model_params.pool_strides
     fc_sizes = model_params.fc_sizes
     drop_rates = model_params.drop_rates
+    data_formats = [model_params.data_format] * len(filters_counts)
     global total_params_count
     total_params_count = 0
 
@@ -175,7 +177,7 @@ def inference(images, model_params):
                         weights_initializer=slim.xavier_initializer()):
         net = slim.stack(images, conv_pool_drop_2d, zip(
             filters_counts, conv_ksizes, conv_strides, pool_ksizes,
-            pool_strides, drop_rates[0:conv_layers_count]),
+            pool_strides, drop_rates[0:conv_layers_count], data_formats),
                             scope='conv_layers')
 
         net = tf.reshape(net, [images.get_shape()[0].value, -1])

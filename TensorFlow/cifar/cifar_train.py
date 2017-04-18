@@ -31,8 +31,8 @@ class Cifar10DataManager(object):
         self.data_batch = np.zeros((batch_size,
                                     cifar_input.IM_SIZE,
                                     cifar_input.IM_SIZE,
-                                    self.data.shape[3]))
-        self.labels_batch = np.zeros((batch_size,))
+                                    self.data.shape[3]), dtype=np.float32)
+        self.labels_batch = np.zeros((batch_size,), dtype=np.int32)
 
     def next_batch(self):
         """
@@ -43,15 +43,14 @@ class Cifar10DataManager(object):
         self.i = (self.i + 1) % self.batches_count
 
         margin = (32 - cifar_input.IM_SIZE) / 2
-        data_batch = self.data[selection, margin:32-margin, margin:32-margin]
+        data_batch = self.data[selection, margin:32 - margin,
+                               margin:32 - margin]
         labels_batch = self.labels[selection]
 
         data_batch = data_batch.astype(np.float32)
         data_batch -= np.mean(data_batch)
         data_batch /= 255.0
         labels_batch = labels_batch.astype(np.int32)
-
-        data_batch = np.transpose(data_batch, axes=[0, 3, 1, 2])
 
         return data_batch, labels_batch
 
@@ -63,17 +62,15 @@ class Cifar10DataManager(object):
         margin = (32 - cifar_input.IM_SIZE) / 2
         data_sel = np.s_[self.i * self.batch_size:
                          (self.i + 1) * self.batch_size,
-                         margin:32-margin, margin:32-margin]
+                         margin:32 - margin, margin:32 - margin]
         labels_sel = np.s_[self.i * self.batch_size:
                            (self.i + 1) * self.batch_size]
         self.i = (self.i + 1) % self.batches_count
 
         self.data.read_direct(self.data_batch, data_sel, np.s_[:])
         self.labels.read_direct(self.labels_batch, labels_sel, np.s_[:])
-        self.data_batch = self.data_batch.astype(np.float32)
         self.data_batch -= np.mean(self.data_batch)
         self.data_batch /= 255.0
-        self.labels_batch = self.labels_batch.astype(np.int32)
 
         return self.data_batch, self.labels_batch
 
@@ -82,6 +79,10 @@ def get_model_params(app_args):
     """
         Creating ModelParams object.
     """
+    if app_args.data_format == 'NCHW':
+        data_format = 'channels_first'
+    else:
+        data_format = 'channels_last'
     model_params = cifar_model.ModelParams(
         filters_counts=app_args.filters_counts,
         conv_ksizes=app_args.conv_ksizes,
@@ -89,7 +90,8 @@ def get_model_params(app_args):
         pool_ksizes=app_args.pool_ksizes,
         pool_strides=app_args.pool_strides,
         fc_sizes=app_args.fc_sizes,
-        drop_rates=app_args.drop_rates)
+        drop_rates=app_args.drop_rates,
+        data_format=data_format)
 
     return model_params
 
@@ -102,10 +104,12 @@ def train(app_args):
                                  train_hdf5["labels"])
     with tf.Graph().as_default() as graph:
         # Get images and labels for CIFAR-10.
-        images = tf.placeholder(tf.float32, [app_args.batch_size, 3,
+        images = tf.placeholder(tf.float32, [app_args.batch_size,
                                              cifar_input.IM_SIZE,
-                                             cifar_input.IM_SIZE])
+                                             cifar_input.IM_SIZE, 3])
         labels = tf.placeholder(tf.int32, [app_args.batch_size])
+        if app_args.data_format == 'NCHW':
+            images = tf.transpose(images, [0, 3, 1, 2])
 
         # Build a Graph that computes the logits predictions
         model_params = get_model_params(app_args)
@@ -145,7 +149,9 @@ def train(app_args):
             start_time = time.time()
 
             for step in xrange(app_args.max_steps):
-                images_feed, labels_feed = manager.next_batch()
+                images_feed, labels_feed = manager.next_batch_direct()
+                if app_args.data_format == 'NCHW':
+                    images_feed = np.transpose(images_feed, axes=[0, 3, 1, 2])
                 feed_dict = {
                     images: images_feed,
                     labels: labels_feed
@@ -256,6 +262,10 @@ if __name__ == '__main__':
     parser.add_argument('--drop-rates', nargs='+', type=int,
                         help="List of probs for each conv and fc layer",
                         default=[])
+
+    parser.add_argument('--data-format',
+                        help="Data format: NCHW or NHWC",
+                        default='NHWC')
 
     app_args = parser.parse_args()
 
