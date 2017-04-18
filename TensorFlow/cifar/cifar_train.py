@@ -123,9 +123,7 @@ def train(app_args):
         coordinator = tf.train.Coordinator()
         manager = Cifar10DataManager(app_args.batch_size,
                                      train_hdf5["data"], train_hdf5["labels"],
-                                     coordinator, app_args.data_format,
-                                     cifar_input.TRAIN_SIZE /
-                                     app_args.batch_size * 0.8)
+                                     coordinator, app_args.data_format)
 
         # Build a Graph that computes the logits predictions
         model_params = get_model_params(app_args)
