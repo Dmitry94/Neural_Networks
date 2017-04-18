@@ -6,6 +6,7 @@ import os
 import argparse
 import time
 import h5py
+import threading
 import numpy as np
 
 import cifar_model
@@ -13,6 +14,7 @@ import cifar_input
 
 import tensorflow as tf
 from tensorflow.contrib import slim
+import multiprocessing
 
 train_hdf5 = h5py.File("../../content/ciraf/hdf5/train.hdf5", "r")
 
@@ -21,58 +23,96 @@ class Cifar10DataManager(object):
     """
         Class for cifar10 data managment.
     """
-    def __init__(self, batch_size, data, labels):
+    class BatchReader(object):
+        """
+            Class for cifar10 data managment.
+        """
+        def __init__(self, batch_size, data, labels, data_format):
+            self.batch_size = batch_size
+            self.data = data
+            self.labels = labels
+            self.i = 0
+            self.batches_count = data.shape[0] / batch_size
+
+            self.data_batch = np.zeros((batch_size,
+                                        cifar_input.IM_SIZE,
+                                        cifar_input.IM_SIZE,
+                                        self.data.shape[3]), dtype=np.float32)
+            self.labels_batch = np.zeros((batch_size,), dtype=np.int32)
+
+            if data_format == 'NCHW':
+                self.data_batch = np.transpose(self.data_batch,
+                                               axes=[0, 3, 1, 2])
+
+        def next_batch(self):
+            """
+                Return next batch using read_direct method from h5py.
+                Cyclic.
+            """
+            margin = (32 - cifar_input.IM_SIZE) / 2
+            data_sel = np.s_[self.i * self.batch_size:
+                             (self.i + 1) * self.batch_size,
+                             margin:32 - margin, margin:32 - margin]
+            labels_sel = np.s_[self.i * self.batch_size:
+                               (self.i + 1) * self.batch_size]
+            self.i = (self.i + 1) % self.batches_count
+
+            self.data.read_direct(self.data_batch, data_sel, np.s_[:])
+            self.labels.read_direct(self.labels_batch, labels_sel, np.s_[:])
+            self.data_batch -= np.mean(self.data_batch)
+            self.data_batch /= 255.0
+
+            return self.data_batch, self.labels_batch
+
+    def __init__(self, batch_size, data, labels,
+                 coord, data_format, queue_size=32):
         self.batch_size = batch_size
         self.data = data
         self.labels = labels
-        self.i = 0
-        self.batches_count = data.shape[0] / batch_size
+        self.data_format = data_format
 
-        self.data_batch = np.zeros((batch_size,
-                                    cifar_input.IM_SIZE,
-                                    cifar_input.IM_SIZE,
-                                    self.data.shape[3]), dtype=np.float32)
-        self.labels_batch = np.zeros((batch_size,), dtype=np.int32)
+        # Init queue parameters
+        self.image = tf.placeholder(tf.float32, [cifar_input.IM_SIZE,
+                                                 cifar_input.IM_SIZE, 3])
+        self.label = tf.placeholder(tf.int32, ())
+        if self.data_format == 'NCHW':
+            self.image = tf.transpose(self.image, [2, 0, 1])
+        self.queue = tf.FIFOQueue(queue_size,
+                                  [self.image.dtype, self.label.dtype],
+                                  [self.image.get_shape(),
+                                   self.label.get_shape()])
+        self.threads = []
+        self.coord = coord
+        self.enqueue_op = self.queue.enqueue([self.image, self.label])
 
-    def next_batch(self):
-        """
-            Return next batch. Cyclic.
-        """
-        selection = np.s_[self.i * self.batch_size:
-                          (self.i + 1) * self.batch_size]
-        self.i = (self.i + 1) % self.batches_count
+    def size(self):
+        return self.queue.size()
 
-        margin = (32 - cifar_input.IM_SIZE) / 2
-        data_batch = self.data[selection, margin:32 - margin,
-                               margin:32 - margin]
-        labels_batch = self.labels[selection]
+    def dequeue(self):
+        output = self.queue.dequeue_many(self.batch_size)
+        return output
 
-        data_batch = data_batch.astype(np.float32)
-        data_batch -= np.mean(data_batch)
-        data_batch /= 255.0
-        labels_batch = labels_batch.astype(np.int32)
+    def thread_main(self, session, reader):
+        stop = False
+        while not stop:
+            data, labels = reader.next_batch()
+            for (image, label) in zip(data, labels):
+                if self.coord.should_stop():
+                    stop = True
+                    break
+                session.run(self.enqueue_op, feed_dict={self.image: image,
+                                                        self.label: label})
 
-        return data_batch, labels_batch
-
-    def next_batch_direct(self):
-        """
-            Return next batch using read_direct method from h5py.
-            Cyclic.
-        """
-        margin = (32 - cifar_input.IM_SIZE) / 2
-        data_sel = np.s_[self.i * self.batch_size:
-                         (self.i + 1) * self.batch_size,
-                         margin:32 - margin, margin:32 - margin]
-        labels_sel = np.s_[self.i * self.batch_size:
-                           (self.i + 1) * self.batch_size]
-        self.i = (self.i + 1) % self.batches_count
-
-        self.data.read_direct(self.data_batch, data_sel, np.s_[:])
-        self.labels.read_direct(self.labels_batch, labels_sel, np.s_[:])
-        self.data_batch -= np.mean(self.data_batch)
-        self.data_batch /= 255.0
-
-        return self.data_batch, self.labels_batch
+    def start_threads(self, session, n_threads=multiprocessing.cpu_count()):
+        for _ in range(n_threads):
+            reader = self.BatchReader(self.batch_size, self.data,
+                                      self.labels, self.data_format)
+            thread = threading.Thread(target=self.thread_main,
+                                      args=(session, reader,))
+            thread.daemon = True  # Thread will close when parent quits.
+            thread.start()
+            self.threads.append(thread)
+        return self.threads
 
 
 def get_model_params(app_args):
@@ -100,19 +140,18 @@ def train(app_args):
     """
       Train CIFAR-10 for a number of steps.
     """
-    manager = Cifar10DataManager(app_args.batch_size, train_hdf5["data"],
-                                 train_hdf5["labels"])
+
     with tf.Graph().as_default() as graph:
-        # Get images and labels for CIFAR-10.
-        images = tf.placeholder(tf.float32, [app_args.batch_size,
-                                             cifar_input.IM_SIZE,
-                                             cifar_input.IM_SIZE, 3])
-        labels = tf.placeholder(tf.int32, [app_args.batch_size])
-        if app_args.data_format == 'NCHW':
-            images = tf.transpose(images, [0, 3, 1, 2])
+        coordinator = tf.train.Coordinator()
+        manager = Cifar10DataManager(app_args.batch_size,
+                                     train_hdf5["data"], train_hdf5["labels"],
+                                     coordinator, app_args.data_format,
+                                     cifar_input.TRAIN_SIZE * 0.75)
 
         # Build a Graph that computes the logits predictions
         model_params = get_model_params(app_args)
+        with tf.device('/CPU:0'):
+            images, labels = manager.dequeue()
         logits = cifar_model.inference(images, model_params)
 
         # Calculate loss.
@@ -142,30 +181,20 @@ def train(app_args):
         saver = tf.train.Saver()
 
         with tf.Session() as session:
-            coordinator = tf.train.Coordinator()
-            threads = tf.train.start_queue_runners(coord=coordinator)
-
             session.run(init_op)
             start_time = time.time()
+            threads = manager.start_threads(session)
 
             for step in xrange(app_args.max_steps):
-                images_feed, labels_feed = manager.next_batch_direct()
-                if app_args.data_format == 'NCHW':
-                    images_feed = np.transpose(images_feed, axes=[0, 3, 1, 2])
-                feed_dict = {
-                    images: images_feed,
-                    labels: labels_feed
-                }
-                _, loss_value = session.run([train_op, loss],
-                                            feed_dict=feed_dict)
-
-                if step % app_args.save_summary_steps == 0 and step > 0:
+                if not (step % app_args.save_summary_steps == 0 and step > 0):
+                    session.run(train_op)
+                else:
                     run_options = tf.RunOptions(
                         trace_level=tf.RunOptions.FULL_TRACE)
                     run_metadata = tf.RunMetadata()
-                    summary = session.run(summary_op, feed_dict=feed_dict,
-                                          options=run_options,
-                                          run_metadata=run_metadata)
+                    _, loss_value, summary = session.run(
+                        [train_op, loss, summary_op], options=run_options,
+                        run_metadata=run_metadata)
 
                     summary_writer.add_run_metadata(run_metadata,
                                                     'step%d' % step)
