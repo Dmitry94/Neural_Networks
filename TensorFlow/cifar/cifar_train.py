@@ -34,18 +34,19 @@ class Cifar10DataManager(object):
         self.data_format = data_format
 
         # Init queue parameters
-        self.image = tf.placeholder(tf.float32, [cifar_input.IM_SIZE,
-                                                 cifar_input.IM_SIZE, 3])
-        self.label = tf.placeholder(tf.int32, ())
+        self.images_pl = tf.placeholder(tf.float32, [batch_size,
+                                                     cifar_input.IM_SIZE,
+                                                     cifar_input.IM_SIZE, 3])
+        self.labels_pl = tf.placeholder(tf.int32, [batch_size])
         if self.data_format == 'NCHW':
-            self.image = tf.transpose(self.image, [2, 0, 1])
+            self.images_pl = tf.transpose(self.image, [0, 3, 1, 2])
         self.queue = tf.FIFOQueue(queue_size,
-                                  [self.image.dtype, self.label.dtype],
-                                  [self.image.get_shape(),
-                                   self.label.get_shape()])
+                                  [self.images_pl.dtype, self.labels_pl.dtype],
+                                  [self.images_pl.get_shape(),
+                                   self.labels_pl.get_shape()])
         self.threads = []
         self.coord = coord
-        self.enqueue_op = self.queue.enqueue([self.image, self.label])
+        self.enqueue_op = self.queue.enqueue([self.images_pl, self.labels_pl])
 
     def next_batch(self):
         """
@@ -72,19 +73,14 @@ class Cifar10DataManager(object):
         return self.queue.size()
 
     def dequeue(self):
-        output = self.queue.dequeue_many(self.batch_size)
+        output = self.queue.dequeue()
         return output
 
     def thread_main(self, session):
-        stop = False
-        while not stop:
+        while not self.coord.should_stop():
             data, labels = self.next_batch()
-            for (image, label) in zip(data, labels):
-                if self.coord.should_stop():
-                    stop = True
-                    break
-                session.run(self.enqueue_op, feed_dict={self.image: image,
-                                                        self.label: label})
+            session.run(self.enqueue_op, feed_dict={self.images_pl: data,
+                                                    self.labels_pl: labels})
 
     def start_threads(self, session, n_threads=multiprocessing.cpu_count()):
         for _ in range(n_threads):
@@ -128,7 +124,8 @@ def train(app_args):
         manager = Cifar10DataManager(app_args.batch_size,
                                      train_hdf5["data"], train_hdf5["labels"],
                                      coordinator, app_args.data_format,
-                                     cifar_input.TRAIN_SIZE * 0.8)
+                                     cifar_input.TRAIN_SIZE /
+                                     app_args.batch_size * 0.8)
 
         # Build a Graph that computes the logits predictions
         model_params = get_model_params(app_args)
