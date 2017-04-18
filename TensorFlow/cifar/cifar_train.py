@@ -142,7 +142,7 @@ def train(app_args):
             start_time = time.time()
 
             for step in xrange(app_args.max_steps):
-                images_feed, labels_feed = manager.next_batch_direct()
+                images_feed, labels_feed = manager.next_batch()
                 feed_dict = {
                     images: images_feed,
                     labels: labels_feed
