@@ -67,6 +67,8 @@ class Cifar10DataManager(object):
         data_batch /= 255.0
         labels_batch = labels_batch.astype(np.int32)
 
+        if self.data_format == 'NCHW':
+            data_batch = np.transpose(data_batch, axes=[0, 3, 1, 2])
         return data_batch, labels_batch
 
     def size(self):
