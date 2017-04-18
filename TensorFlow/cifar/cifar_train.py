@@ -88,9 +88,7 @@ class Cifar10DataManager(object):
             thread.daemon = True  # Thread will close when parent quits.
             thread.start()
             self.threads.append(thread)
-
-    def stop_threads(self, session):
-        self.coord.join(self.threads)
+        return self.threads
 
 
 def get_model_params(app_args):
@@ -162,7 +160,7 @@ def train(app_args):
         with tf.Session() as session:
             session.run(init_op)
             start_time = time.time()
-            manager.start_threads(session)
+            threads = manager.start_threads(session)
 
             for step in xrange(app_args.max_steps):
                 if not (step % app_args.save_summary_steps == 0 and step > 0):
@@ -198,7 +196,7 @@ def train(app_args):
                     saver.save(session, checkpoint_file, step)
 
             coordinator.request_stop()
-            manager.stop_threads()
+            coordinator.join(threads)
 
 
 if __name__ == '__main__':
