@@ -18,10 +18,10 @@ def get_model_params(app_args):
     """
         Creating ModelParams object.
     """
-    if app_args.data_format == 'NCHW':
-        data_format = 'channels_first'
+    if app_args.data_format == "NCHW":
+        data_format = "channels_first"
     else:
-        data_format = 'channels_last'
+        data_format = "channels_last"
     model_params = cifar_model.ModelParams(
         filters_counts=app_args.filters_counts,
         conv_ksizes=app_args.conv_ksizes,
@@ -49,12 +49,12 @@ def train(app_args):
 
         # Build a Graph that computes the logits predictions
         model_params = get_model_params(app_args)
-        with tf.device('/CPU:0'):
+        with tf.device("/CPU:0"):
             images, labels = manager.dequeue()
-        images = tf.identity(images, name='images')
-        labels = tf.identity(labels, name='labels')
+        images = tf.identity(images, name="images")
+        labels = tf.identity(labels, name="labels")
         logits = cifar_model.inference(images, model_params)
-        tf.add_to_collection('logits', logits)
+        tf.add_to_collection("logits", logits)
 
         # Calculate loss.
         tf.losses.sparse_softmax_cross_entropy(labels, logits)
@@ -76,8 +76,8 @@ def train(app_args):
         init_op = tf.global_variables_initializer()
         train_op = slim.learning.create_train_op(loss, opt)
 
-        tf.summary.scalar('Learning_rate', lr)
-        tf.summary.scalar('Loss', loss)
+        tf.summary.scalar("Learning_rate", lr)
+        tf.summary.scalar("Loss", loss)
         summary_op = tf.summary.merge_all()
         summary_writer = tf.summary.FileWriter(app_args.log_dir, graph)
 
@@ -100,7 +100,7 @@ def train(app_args):
                         run_metadata=run_metadata)
 
                     summary_writer.add_run_metadata(run_metadata,
-                                                    'step%d' % step)
+                                                    "step%d" % step)
                     summary_writer.add_summary(summary, step)
 
                     current_time = time.time()
@@ -112,100 +112,99 @@ def train(app_args):
                     sec_per_batch = float(duration /
                                           app_args.save_summary_steps)
                     print(
-                        'Step = %d Loss = %f Samples per sec = %d'
-                        ' Sec per batch = %f' %
+                        "Step = %d Loss = %f Samples per sec = %d"
+                        " Sec per batch = %f" %
                         (step, loss_value, examples_per_sec, sec_per_batch))
 
                 if step % app_args.save_checkpoint_steps == 0:
                     checkpoint_file = os.path.join(app_args.log_dir,
-                                                   'model.ckpt')
+                                                   "model.ckpt")
                     saver.save(session, checkpoint_file, step)
-            try:
-                session.run(manager.queue.close(cancel_pending_enqueues=True))
-            except Exception, e:
-                coordinator.request_stop()
-                coordinator.join(threads)
+
+            session.run(manager.queue.close(cancel_pending_enqueues=True))
+            coordinator.request_stop()
+            coordinator.join(threads)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument('--data-file',
-                        help='Path to the data directory',
-                        default='../../content/ciraf/hdf5/train.hdf5')
+    parser.add_argument("--data-file",
+                        help="Path to the data directory",
+                        default="../../content/ciraf/hdf5/train.hdf5")
 
-    parser.add_argument('--log-dir',
-                        help='Path to the directory, where log will write',
-                        default='cifar10_train')
+    parser.add_argument("--log-dir",
+                        help="Path to the directory, where log will write",
+                        default="cifar10_train")
 
-    parser.add_argument('--max-steps', type=int,
-                        help='Number of batches to run',
+    parser.add_argument("--max-steps", type=int,
+                        help="Number of batches to run",
                         default=100000)
 
-    parser.add_argument('--batch-size', type=int,
-                        help='Number of images to process in a batch',
+    parser.add_argument("--batch-size", type=int,
+                        help="Number of images to process in a batch",
                         default=128)
 
-    parser.add_argument('--init-lr', type=float,
-                        help='Start value for learning rate',
+    parser.add_argument("--init-lr", type=float,
+                        help="Start value for learning rate",
                         default=0.1)
 
-    parser.add_argument('--lr-decay-factor', type=float,
-                        help='Learning rate decay factor',
+    parser.add_argument("--lr-decay-factor", type=float,
+                        help="Learning rate decay factor",
                         default=0.1)
 
-    parser.add_argument('--num-epochs-lr-decay', type=int,
-                        help='How many epochs should processed to decay lr',
+    parser.add_argument("--num-epochs-lr-decay", type=int,
+                        help="How many epochs should processed to decay lr",
                         default=350)
 
-    parser.add_argument('--log-frequency', type=int,
-                        help='How often to log results to the console',
+    parser.add_argument("--log-frequency", type=int,
+                        help="How often to log results to the console",
                         default=10)
 
-    parser.add_argument('--save-checkpoint-steps', type=int,
-                        help='How often to save checkpoint',
+    parser.add_argument("--save-checkpoint-steps", type=int,
+                        help="How often to save checkpoint",
                         default=1000)
 
-    parser.add_argument('--save-summary-steps', type=int,
-                        help='How often to save summary',
+    parser.add_argument("--save-summary-steps", type=int,
+                        help="How often to save summary",
                         default=100)
 
-    parser.add_argument('--filters-counts', nargs='+', type=int,
-                        help='List of filter counts for each conv layer',
+    parser.add_argument("--filters-counts", nargs="+", type=int,
+                        help="List of filter counts for each conv layer",
                         default=[64, 64])
 
-    parser.add_argument('--conv-ksizes', nargs='+', type=int,
-                        help='List of kernel sizes for each conv layer',
+    parser.add_argument("--conv-ksizes", nargs="+", type=int,
+                        help="List of kernel sizes for each conv layer",
                         default=[5])
 
-    parser.add_argument('--conv-strides', nargs='+', type=int,
-                        help='List of strides for each conv layer',
+    parser.add_argument("--conv-strides", nargs="+", type=int,
+                        help="List of strides for each conv layer",
                         default=[])
 
-    parser.add_argument('--pool-ksizes', nargs='+', type=int,
-                        help='List of kernel sizes for each pool layer',
+    parser.add_argument("--pool-ksizes", nargs="+", type=int,
+                        help="List of kernel sizes for each pool layer",
                         default=[3])
 
-    parser.add_argument('--pool-strides', nargs='+', type=int,
-                        help='List of strides for each pool layer',
+    parser.add_argument("--pool-strides", nargs="+", type=int,
+                        help="List of strides for each pool layer",
                         default=[2])
 
-    parser.add_argument('--fc-sizes', nargs='+', type=int,
-                        help='List of sizes for each fc layer',
+    parser.add_argument("--fc-sizes", nargs="+", type=int,
+                        help="List of sizes for each fc layer",
                         default=[384, 192,
                                  cifar_input.Cifar10DataManager.NUM_CLASSES])
 
-    parser.add_argument('--drop-rates', nargs='+', type=int,
+    parser.add_argument("--drop-rates", nargs="+", type=int,
                         help="List of probs for each conv and fc layer",
                         default=[])
 
-    parser.add_argument('--data-format',
+    parser.add_argument("--data-format",
                         help="Data format: NCHW or NHWC",
-                        default='NHWC')
+                        default="NHWC")
 
     app_args = parser.parse_args()
 
     if tf.gfile.Exists(app_args.log_dir):
         tf.gfile.DeleteRecursively(app_args.log_dir)
     tf.gfile.MakeDirs(app_args.log_dir)
-    tf.logging.set_verbosity('DEBUG')
+    tf.logging.set_verbosity("DEBUG")
     train(app_args)

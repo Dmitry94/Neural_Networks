@@ -40,7 +40,7 @@ class Cifar10DataManager(object):
             batch_size, Cifar10DataManager.IM_SIZE,
             Cifar10DataManager.IM_SIZE, 3])
         self.labels_pl = tf.placeholder(tf.int32, [batch_size])
-        if self.data_format == 'NCHW':
+        if self.data_format == "NCHW":
             self.images_pl = tf.transpose(self.images_pl, [0, 3, 1, 2])
         self.queue = tf.FIFOQueue(queue_size,
                                   [self.images_pl.dtype, self.labels_pl.dtype],
@@ -69,7 +69,7 @@ class Cifar10DataManager(object):
         data_batch /= 255.0
         labels_batch = labels_batch.astype(np.int32)
 
-        if self.data_format == 'NCHW':
+        if self.data_format == "NCHW":
             data_batch = np.transpose(data_batch, axes=[0, 3, 1, 2])
         return data_batch, labels_batch
 
@@ -186,7 +186,7 @@ def _generate_batch(image, label, min_queue_size,
             [image, label], batch_size, num_threads=num_of_threads,
             capacity=min_queue_size + 3 * batch_size)
 
-    tf.summary.image('Images', images)
+    tf.summary.image("Images", images)
     labels = tf.reshape(labels, [batch_size])
 
     return images, labels
@@ -208,16 +208,16 @@ def get_cifar10_input(data_dir, batch_size, image_size, is_test):
             labels: 1d tensor: [batch_size]
     """
     if is_test:
-        filenames = [os.path.join(data_dir, 'test_batch.bin')]
+        filenames = [os.path.join(data_dir, "test_batch.bin")]
         num_examples_per_epoch = Cifar10DataManager.TEST_SIZE
     else:
-        filenames = [os.path.join(data_dir, 'data_batch_%d.bin' % i)
+        filenames = [os.path.join(data_dir, "data_batch_%d.bin" % i)
                      for i in xrange(1, 6)]
         num_examples_per_epoch = Cifar10DataManager.TRAIN_SIZE
 
     for f in filenames:
         if not tf.gfile.Exists(f):
-            raise ValueError('Failed to find file: ' + f)
+            raise ValueError("Failed to find file: " + f)
 
     queue = tf.train.string_input_producer(filenames)
     records = read_cifar10(queue)

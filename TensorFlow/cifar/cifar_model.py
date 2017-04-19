@@ -10,23 +10,23 @@ import tensorflow as tf
 from tensorflow.contrib import slim
 
 total_params_count = 0
-ModelParams = namedtuple('ModelParams', ['filters_counts',
-                                         'conv_ksizes', 'conv_strides',
-                                         'pool_ksizes', 'pool_strides',
-                                         'fc_sizes', 'drop_rates',
-                                         'data_format'])
+ModelParams = namedtuple("ModelParams", ["filters_counts",
+                                         "conv_ksizes", "conv_strides",
+                                         "pool_ksizes", "pool_strides",
+                                         "fc_sizes", "drop_rates",
+                                         "data_format"])
 
 
 def _tensor_summary(tensor):
     """
         Generates summury for some tensor.
-        Summary it's histogram and sparsity.
+        Summary it"s histogram and sparsity.
     """
     tensor_name = tensor.op.name
     tf.summary.histogram(tensor_name, tensor)
 
     # Tensor sparsiry, i.e. zeros_count / all
-    tf.summary.scalar(tensor_name + '/sparsity',
+    tf.summary.scalar(tensor_name + "/sparsity",
                       tf.nn.zero_fraction(tensor))
 
 
@@ -52,31 +52,31 @@ def conv_pool_drop_2d(in_data, filters_count, conv_ksize, conv_stride,
     """
     out = tf.layers.conv2d(in_data, filters_count, kernel_size=conv_ksize,
                            strides=conv_stride,
-                           data_format=data_format, name=scope + '/conv')
+                           data_format=data_format, name=scope + "/conv")
     _tensor_summary(out)
     if not isinstance(conv_ksize, list):
         conv_ksize = [conv_ksize, conv_ksize]
     if len(conv_ksize) < 2:
         conv_ksize = [conv_ksize[0], conv_ksize[0]]
     params_count = filters_count * (conv_ksize[0] * conv_ksize[1] * 3 + 1)
-    print('Convolutional layer: shape = ', out.get_shape(),
-          ' kernel = ', conv_ksize, ' strides = ', conv_stride,
-          ' filters count = ', filters_count,
-          ' layer num of params = ', params_count)
+    print("Convolutional layer: shape = ", out.get_shape(),
+          " kernel = ", conv_ksize, " strides = ", conv_stride,
+          " filters count = ", filters_count,
+          " layer num of params = ", params_count)
     global total_params_count
     total_params_count += params_count
 
     out = tf.layers.max_pooling2d(out, pool_size=pool_ksize,
                                   strides=pool_stride,
                                   data_format=data_format,
-                                  name=scope + '/pool')
+                                  name=scope + "/pool")
     _tensor_summary(out)
-    print('Pool layer: shape = ', out.get_shape(),
-          ', kernel = ', pool_ksize, ', strides = ', pool_stride)
+    print("Pool layer: shape = ", out.get_shape(),
+          ", kernel = ", pool_ksize, ", strides = ", pool_stride)
 
     if drop_rate != 0:
-        out = tf.layers.dropout(out, rate=drop_rate, name=scope + '/dropout')
-        print('Dropout layer: drop rate = ', drop_rate)
+        out = tf.layers.dropout(out, rate=drop_rate, name=scope + "/dropout")
+        print("Dropout layer: drop rate = ", drop_rate)
         _tensor_summary(out)
 
     return out
@@ -97,19 +97,19 @@ def fc_drop(in_data, fc_size, drop_rate, scope):
         -------
             Out after fc and dropout.
     """
-    out = slim.fully_connected(in_data, fc_size, scope=scope + 'fc')
+    out = slim.fully_connected(in_data, fc_size, scope=scope + "fc")
     _tensor_summary(out)
     params_count = fc_size * in_data.get_shape()[-1].value
-    print('Fully connected layer: shape = ', out.get_shape(),
-          ' size = ', fc_size,
-          ' layer num of params = ', params_count)
+    print("Fully connected layer: shape = ", out.get_shape(),
+          " size = ", fc_size,
+          " layer num of params = ", params_count)
     global total_params_count
     total_params_count += params_count
 
     if drop_rate != 0:
-        out = tf.layers.dropout(out, rate=drop_rate, name=scope + '/dropout')
+        out = tf.layers.dropout(out, rate=drop_rate, name=scope + "/dropout")
         _tensor_summary(out)
-        print('Dropout layer: drop rate = ', drop_rate)
+        print("Dropout layer: drop rate = ", drop_rate)
 
     return out
 
@@ -178,21 +178,21 @@ def inference(images, model_params):
         net = slim.stack(images, conv_pool_drop_2d, zip(
             filters_counts, conv_ksizes, conv_strides, pool_ksizes,
             pool_strides, drop_rates[0:conv_layers_count], data_formats),
-                            scope='conv_layers')
+                            scope="conv_layers")
 
         net = tf.reshape(net, [images.get_shape()[0].value, -1])
         net = slim.stack(net, fc_drop, zip(fc_sizes[:len(fc_sizes) - 1],
                                            drop_rates[conv_layers_count:]),
-                         scope='fc_layers')
+                         scope="fc_layers")
 
         logits = slim.fully_connected(net, fc_sizes[-1], activation_fn=None,
-                                      scope='logits')
+                                      scope="logits")
         _tensor_summary(logits)
         params_count = fc_sizes[-1] * net.get_shape()[-1].value
-        print('Fully connected layer: shape = ', logits.get_shape(),
-              ' size = ', fc_sizes[-1],
-              ' layer num of params = ', params_count)
+        print("Fully connected layer: shape = ", logits.get_shape(),
+              " size = ", fc_sizes[-1],
+              " layer num of params = ", params_count)
         total_params_count += params_count
-        print('Total params count = ', total_params_count)
+        print("Total params count = ", total_params_count)
 
     return logits
