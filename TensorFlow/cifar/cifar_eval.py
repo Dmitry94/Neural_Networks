@@ -30,7 +30,6 @@ def eval_once(app_args):
             if file > graph_path:
                 graph_path = file
     graph_path = os.path.join(app_args.checkpoint_dir, graph_path)
-    print graph_path
 
     config = tf.ConfigProto(device_count={"GPU": app_args.gpu_count})
     sess = tf.InteractiveSession(config=config)
@@ -47,10 +46,9 @@ def eval_once(app_args):
         images, labels = manager.dequeue()
 
     logits = tf.get_collection("logits")[0]
+    loss = tf.get_collection("loss")[0]
     top_k_op = tf.nn.in_top_k(logits, labels, 1)
-    init_op = tf.global_variables_initializer()
 
-    sess.run(init_op)
     threads = manager.start_threads(sess)
     num_iter = int(math.ceil(app_args.samples_count / app_args.batch_size))
     true_count = 0
@@ -58,6 +56,7 @@ def eval_once(app_args):
     step = 0
     while step < num_iter and not coord.should_stop():
         im_feed, l_feed, sz = sess.run([images, labels, manager.size()])
+        #loss_val = sess.run(loss)
         predictions = sess.run([top_k_op], feed_dict={"images:0": im_feed,
                                                       "labels:0": l_feed})
         true_count += np.sum(predictions)
