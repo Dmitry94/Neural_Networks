@@ -120,9 +120,11 @@ def train(app_args):
                     checkpoint_file = os.path.join(app_args.log_dir,
                                                    'model.ckpt')
                     saver.save(session, checkpoint_file, step)
-
-            coordinator.request_stop()
-            coordinator.join(threads, stop_grace_period_secs=10)
+            try:
+                session.run(manager.queue.close(cancel_pending_enqueues=True))
+            except Exception, e:
+                coordinator.request_stop()
+                coordinator.join(threads)
 
 
 if __name__ == '__main__':
@@ -137,7 +139,7 @@ if __name__ == '__main__':
 
     parser.add_argument('--max-steps', type=int,
                         help='Number of batches to run',
-                        default=2)
+                        default=100000)
 
     parser.add_argument('--batch-size', type=int,
                         help='Number of images to process in a batch',

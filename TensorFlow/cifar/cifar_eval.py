@@ -72,8 +72,8 @@ def eval_once(app_args):
         print('%s: Precision = %f' % (datetime.now(), precision))
 
         coord.request_stop()
-        coord.join(threads)
-        print 'Done'
+        sess.run(manager.queue.close(cancel_pending_enqueues=True))
+        coord.join(threads, stop_grace_period_secs=10)
 
 
 def evaluate(app_args):

@@ -83,8 +83,13 @@ class Cifar10DataManager(object):
     def thread_main(self, session):
         while not self.coord.should_stop():
             data, labels = self.next_batch()
-            session.run(self.enqueue_op, feed_dict={self.images_pl: data,
-                                                    self.labels_pl: labels})
+
+            try:
+                session.run(self.enqueue_op,
+                            feed_dict={self.images_pl: data,
+                                       self.labels_pl: labels})
+            except tf.errors.CancelledError:
+                return
 
     def start_threads(self, session, n_threads=multiprocessing.cpu_count()):
         for _ in range(n_threads):
