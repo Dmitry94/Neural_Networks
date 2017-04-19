@@ -91,3 +91,6 @@ ENV/
 TensorFlow/cifar/cifar10_*
 
 content/cifar/hdf5/
+content/cifar/hdf5
+content/cifar/hdf5/*
+content/cifar/hdf5/*.hdf5
