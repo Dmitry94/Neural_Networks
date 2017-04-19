@@ -51,7 +51,10 @@ def train(app_args):
         model_params = get_model_params(app_args)
         with tf.device('/CPU:0'):
             images, labels = manager.dequeue()
+        images = tf.identity(images, name='images')
+        labels = tf.identity(labels, name='labels')
         logits = cifar_model.inference(images, model_params)
+        tf.add_to_collection('logits', logits)
 
         # Calculate loss.
         tf.losses.sparse_softmax_cross_entropy(labels, logits)
@@ -119,7 +122,7 @@ def train(app_args):
                     saver.save(session, checkpoint_file, step)
 
             coordinator.request_stop()
-            coordinator.join(threads)
+            coordinator.join(threads, stop_grace_period_secs=10)
 
 
 if __name__ == '__main__':
@@ -134,7 +137,7 @@ if __name__ == '__main__':
 
     parser.add_argument('--max-steps', type=int,
                         help='Number of batches to run',
-                        default=1000000)
+                        default=2)
 
     parser.add_argument('--batch-size', type=int,
                         help='Number of images to process in a batch',

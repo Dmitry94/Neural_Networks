@@ -38,8 +38,8 @@ class Cifar10DataManager(object):
         # Init queue parameters
         self.images_pl = tf.placeholder(tf.float32, [
             batch_size, Cifar10DataManager.IM_SIZE,
-            Cifar10DataManager.IM_SIZE, 3], name='images')
-        self.labels_pl = tf.placeholder(tf.int32, [batch_size], name='labels')
+            Cifar10DataManager.IM_SIZE, 3])
+        self.labels_pl = tf.placeholder(tf.int32, [batch_size])
         if self.data_format == 'NCHW':
             self.images_pl = tf.transpose(self.images_pl, [0, 3, 1, 2])
         self.queue = tf.FIFOQueue(queue_size,
