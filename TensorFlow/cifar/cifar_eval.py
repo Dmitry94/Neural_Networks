@@ -30,6 +30,7 @@ def eval_once(app_args):
             if file > graph_path:
                 graph_path = file
     graph_path = os.path.join(app_args.checkpoint_dir, graph_path)
+    print graph_path
 
     saver = tf.train.import_meta_graph(graph_path)
     coord = tf.train.Coordinator()
