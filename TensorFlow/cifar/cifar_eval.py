@@ -46,7 +46,8 @@ def eval_once(app_args):
     top_k_op = tf.nn.in_top_k(logits, labels, 1)
     init_op = tf.global_variables_initializer()
 
-    with tf.Session() as sess:
+    config = tf.ConfigProto(device_count={'GPU': app_args.gpu_count})
+    with tf.Session(config=config) as sess:
         ckpt = tf.train.get_checkpoint_state(app_args.checkpoint_dir)
         if ckpt and ckpt.model_checkpoint_path:
             saver.restore(sess, ckpt.model_checkpoint_path)
@@ -118,6 +119,10 @@ if __name__ == '__main__':
     parser.add_argument('--data-format',
                         help="Data format: NCHW or NHWC",
                         default='NHWC')
+
+    parser.add_argument('--gpu-count', type=int,
+                        help="Count of GPUs, if zero, then use CPU",
+                        default=0)
 
     app_args = parser.parse_args()
     if tf.gfile.Exists(app_args.log_dir):
