@@ -139,7 +139,7 @@ if __name__ == "__main__":
 
     parser.add_argument("--max-steps", type=int,
                         help="Number of batches to run",
-                        default=10000)
+                        default=1000000)
 
     parser.add_argument("--batch-size", type=int,
                         help="Number of images to process in a batch",
