@@ -32,7 +32,10 @@ def eval_once(app_args):
     graph_path = os.path.join(app_args.checkpoint_dir, graph_path)
     print graph_path
 
+    config = tf.ConfigProto(device_count={"GPU": app_args.gpu_count})
+    sess = tf.InteractiveSession(config=config)
     saver = tf.train.import_meta_graph(graph_path)
+    saver.restore(sess, tf.train.latest_checkpoint(app_args.checkpoint_dir))
     coord = tf.train.Coordinator()
 
     train_hdf5 = h5py.File(app_args.data_file, "r")
@@ -47,35 +50,26 @@ def eval_once(app_args):
     top_k_op = tf.nn.in_top_k(logits, labels, 1)
     init_op = tf.global_variables_initializer()
 
-    config = tf.ConfigProto(device_count={"GPU": app_args.gpu_count})
-    with tf.Session(config=config) as sess:
-        ckpt = tf.train.get_checkpoint_state(app_args.checkpoint_dir)
-        if ckpt and ckpt.model_checkpoint_path:
-            saver.restore(sess, ckpt.model_checkpoint_path)
-        else:
-            print("No checkpoint in this directory")
-            return
+    sess.run(init_op)
+    threads = manager.start_threads(sess)
+    num_iter = int(math.ceil(app_args.samples_count / app_args.batch_size))
+    true_count = 0
+    total_sample_count = num_iter * app_args.batch_size
+    step = 0
+    while step < num_iter and not coord.should_stop():
+        im_feed, l_feed, sz = sess.run([images, labels, manager.size()])
+        predictions = sess.run([top_k_op], feed_dict={"images:0": im_feed,
+                                                      "labels:0": l_feed})
+        true_count += np.sum(predictions)
+        step += 1
 
-        sess.run(init_op)
-        threads = manager.start_threads(sess)
-        num_iter = int(math.ceil(app_args.samples_count / app_args.batch_size))
-        true_count = 0
-        total_sample_count = num_iter * app_args.batch_size
-        step = 0
-        while step < num_iter and not coord.should_stop():
-            im_feed, l_feed, sz = sess.run([images, labels, manager.size()])
-            predictions = sess.run([top_k_op], feed_dict={"images:0": im_feed,
-                                                          "labels:0": l_feed})
-            true_count += np.sum(predictions)
-            step += 1
+    # Compute precision @ 1.
+    precision = true_count / float(total_sample_count)
+    print("%s: Precision = %f" % (datetime.now(), precision))
 
-        # Compute precision @ 1.
-        precision = true_count / float(total_sample_count)
-        print("%s: Precision = %f" % (datetime.now(), precision))
-
-        coord.request_stop()
-        sess.run(manager.queue.close(cancel_pending_enqueues=True))
-        coord.join(threads, stop_grace_period_secs=10)
+    coord.request_stop()
+    sess.run(manager.queue.close(cancel_pending_enqueues=True))
+    coord.join(threads, stop_grace_period_secs=10)
 
 
 def evaluate(app_args):
