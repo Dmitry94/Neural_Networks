@@ -54,17 +54,20 @@ def eval_once(app_args):
     true_count = 0
     total_sample_count = num_iter * app_args.batch_size
     step = 0
+    loss_mean = 0
     while step < num_iter and not coord.should_stop():
         im_feed, l_feed, sz = sess.run([images, labels, manager.size()])
-        #loss_val = sess.run(loss)
-        predictions = sess.run([top_k_op], feed_dict={"images:0": im_feed,
-                                                      "labels:0": l_feed})
+        loss_val, predictions = sess.run(
+            [loss, top_k_op],
+            feed_dict={"images:0": im_feed, "labels:0": l_feed})
+
+        loss_mean += loss_val
         true_count += np.sum(predictions)
         step += 1
 
-    # Compute precision @ 1.
     precision = true_count / float(total_sample_count)
-    print("%s: Precision = %f" % (datetime.now(), precision))
+    print("%s: Precision = %f, Loss = %f" % (datetime.now(), precision,
+                                             (loss_mean / num_iter)))
 
     coord.request_stop()
     sess.run(manager.queue.close(cancel_pending_enqueues=True))
