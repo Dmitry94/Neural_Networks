@@ -73,7 +73,7 @@ def train(app_args):
 
         # Define ops
         init_op = tf.global_variables_initializer()
-        train_op = opt.minimize(loss, global_step)
+        train_op = slim.learning.create_train_op(loss, opt)
 
         tf.summary.scalar("Learning_rate", lr)
         tf.summary.scalar("Loss", loss)
