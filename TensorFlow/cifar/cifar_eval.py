@@ -10,11 +10,8 @@ import h5py
 from datetime import datetime
 import numpy as np
 
-import cifar_model
 import cifar_input
 import tensorflow as tf
-
-from matplotlib import pyplot as plt
 
 
 def eval_once(app_args, saver):
@@ -36,15 +33,11 @@ def eval_once(app_args, saver):
         app_args.batch_size, train_hdf5["data"], train_hdf5["labels"],
         coord, app_args.data_format)
 
-    with tf.device("/CPU:0"):
-        images, labels = manager.dequeue()
-
+    images, labels = tf.get_collection("inputs")
     logits = tf.get_collection("logits")[0]
     loss = tf.get_collection(tf.GraphKeys.LOSSES)[0]
-    loss2 = tf.losses.sparse_softmax_cross_entropy(labels, logits)
     top_k_op = tf.nn.in_top_k(logits, labels, 1)
 
-    threads = manager.start_threads(sess)
     num_iter = int(math.ceil(app_args.samples_count / app_args.batch_size))
     true_count = 0
     total_sample_count = num_iter * app_args.batch_size
@@ -52,11 +45,10 @@ def eval_once(app_args, saver):
     loss_mean = 0
 
     while step < num_iter and not coord.should_stop():
-        im_feed, l_feed = sess.run([images, labels])
-        logits, loss_val, loss_val2, predictions = sess.run(
-            [logits, loss, loss2, top_k_op],
-            feed_dict={"images:0": im_feed, "labels:0": l_feed})
-        print loss_val, loss_val2
+        im_feed, l_feed = manager.next_batch()
+        loss_val, predictions = sess.run(
+            [loss, top_k_op], feed_dict={images: im_feed,
+                                         labels: l_feed})
         loss_mean += loss_val
         true_count += np.sum(predictions)
         step += 1
@@ -67,7 +59,6 @@ def eval_once(app_args, saver):
 
     coord.request_stop()
     sess.run(manager.queue.close(cancel_pending_enqueues=True))
-    coord.join(threads, stop_grace_period_secs=10)
 
 
 def evaluate(app_args):
@@ -90,7 +81,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--data-file",
                         help="Path to the data directory",
-                        default="../../content/ciraf/hdf5/train.hdf5")
+                        default="../../content/ciraf/hdf5/test.hdf5")
 
     parser.add_argument("--samples-count", type=int,
                         help="Number of images to process at all",
@@ -98,7 +89,7 @@ if __name__ == "__main__":
 
     parser.add_argument("--batch-size", type=int,
                         help="Number of images to process in a batch",
-                        default=128)
+                        default=256)
 
     parser.add_argument("--log-dir",
                         help="Path to the directory, where log will write",
@@ -110,7 +101,7 @@ if __name__ == "__main__":
 
     parser.add_argument("--eval-interval", type=int,
                         help="How often to evaluate",
-                        default=0.01)
+                        default=10)
 
     parser.add_argument("--eval-once", type=bool,
                         help="Eval one time or more",

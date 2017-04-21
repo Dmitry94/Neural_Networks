@@ -57,6 +57,8 @@ def train(app_args):
                                              name="images")
         labels = tf.placeholder_with_default(labels, [None], name="labels")
         logits = cifar_model.inference(images, model_params)
+        tf.add_to_collection('inputs', images)
+        tf.add_to_collection('inputs', labels)
         tf.add_to_collection("logits", logits)
 
         # Calculate loss.
@@ -147,7 +149,7 @@ if __name__ == "__main__":
 
     parser.add_argument("--max-steps", type=int,
                         help="Number of batches to run",
-                        default=1000)
+                        default=100000)
 
     parser.add_argument("--batch-size", type=int,
                         help="Number of images to process in a batch",

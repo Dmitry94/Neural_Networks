@@ -91,7 +91,7 @@ class Cifar10DataManager(object):
                 return
 
     def start_threads(self, session, n_threads=multiprocessing.cpu_count()):
-        for _ in range(1):
+        for _ in range(n_threads):
             thread = threading.Thread(target=self.thread_main, args=(session,))
             thread.daemon = True  # Thread will close when parent quits.
             thread.start()
