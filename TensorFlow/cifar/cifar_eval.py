@@ -17,7 +17,7 @@ import tensorflow as tf
 from matplotlib import pyplot as plt
 
 
-def eval_once(app_args):
+def eval_once(app_args, saver):
     """
         Run Eval once.
         Args:
@@ -26,17 +26,8 @@ def eval_once(app_args):
         top_k_op: Top K op.
         summary_op: Summary op.
     """
-    graph_path = ""
-    for file in os.listdir(app_args.checkpoint_dir):
-        if file.endswith(".meta"):
-            if file > graph_path:
-                graph_path = file
-    graph_path = os.path.join(app_args.checkpoint_dir, graph_path)
-
-    tf.reset_default_graph()
     config = tf.ConfigProto(device_count={"GPU": app_args.gpu_count})
     sess = tf.InteractiveSession(config=config)
-    saver = tf.train.import_meta_graph(graph_path)
     saver.restore(sess, tf.train.latest_checkpoint(app_args.checkpoint_dir))
     coord = tf.train.Coordinator()
 
@@ -50,6 +41,7 @@ def eval_once(app_args):
 
     logits = tf.get_collection("logits")[0]
     loss = tf.get_collection(tf.GraphKeys.LOSSES)[0]
+    loss2 = tf.losses.sparse_softmax_cross_entropy(labels, logits)
     top_k_op = tf.nn.in_top_k(logits, labels, 1)
 
     threads = manager.start_threads(sess)
@@ -61,11 +53,10 @@ def eval_once(app_args):
 
     while step < num_iter and not coord.should_stop():
         im_feed, l_feed = sess.run([images, labels])
-        # plt.imshow(im_feed[0])
-        # plt.show()
-        predictions, loss_val = sess.run(
-            [top_k_op, loss],
+        predictions, loss_val, loss_val2 = sess.run(
+            [top_k_op, loss, loss2],
             feed_dict={"images:0": im_feed, "labels:0": l_feed})
+        print loss_val, loss_val2
         loss_mean += loss_val
         true_count += np.sum(predictions)
         step += 1
@@ -80,8 +71,15 @@ def eval_once(app_args):
 
 
 def evaluate(app_args):
+    graph_path = ""
+    for file in os.listdir(app_args.checkpoint_dir):
+        if file.endswith(".meta"):
+            if file > graph_path:
+                graph_path = file
+    graph_path = os.path.join(app_args.checkpoint_dir, graph_path)
+    saver = tf.train.import_meta_graph(graph_path)
     while True:
-        eval_once(app_args)
+        eval_once(app_args, saver)
         if app_args.eval_once:
             break
         else:

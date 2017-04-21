@@ -64,9 +64,8 @@ class Cifar10DataManager(object):
             labels_batch = self.labels[selection]
 
         data_batch = data_batch.astype(np.float32)
-        for im in data_batch:
-            im -= np.mean(im)
-            im /= 255.0
+        data_batch = (data_batch - np.mean(data_batch, axis=(1, 2, 3),
+                      keepdims=True)) / 255.0
         labels_batch = labels_batch.astype(np.int32)
 
         if self.data_format == "NCHW":
