@@ -12,6 +12,7 @@ import cifar_input
 
 import tensorflow as tf
 from tensorflow.contrib import slim
+import numpy as np
 
 from matplotlib import pyplot as plt
 
@@ -53,8 +54,15 @@ def train(app_args):
         model_params = get_model_params(app_args)
         with tf.device("/CPU:0"):
             images, labels = manager.dequeue()
-        images = tf.identity(images, name="images")
-        labels = tf.identity(labels, name="labels")
+        images = tf.placeholder_with_default(
+            images, (None, 24, 24, 3), name="images")
+        labels = tf.placeholder_with_default(
+            labels, (None,), name="labels")
+        tf.add_to_collection('inputs', images)
+        tf.add_to_collection('inputs', labels)
+        print tf.get_collection('inputs')
+        # images = tf.identity(images, name="images")
+        # labels = tf.identity(labels, name="labels")
         logits = cifar_model.inference(images, model_params)
         tf.add_to_collection("logits", logits)
 
@@ -90,11 +98,8 @@ def train(app_args):
             threads = manager.start_threads(session)
 
             for step in xrange(1, app_args.max_steps + 1):
-                i = session.run(images)
-                plt.imshow(i[0])
-                plt.show()
 
-                if not (step % app_args.save_summary_steps != 0 and step > 0):
+                if not (step % app_args.save_summary_steps == 0 and step > 0):
                     session.run(train_op)
                 else:
                     run_options = tf.RunOptions(
@@ -125,10 +130,24 @@ def train(app_args):
                     checkpoint_file = os.path.join(app_args.log_dir,
                                                    "model.ckpt")
                     saver.save(session, checkpoint_file, step)
+                    print 'Saved checkpoint:', checkpoint_file
 
             session.run(manager.queue.close(cancel_pending_enqueues=True))
             coordinator.request_stop()
             coordinator.join(threads)
+            image = train_hdf5["data"][:1].astype('float32')
+            label = train_hdf5["labels"][:1].astype('int32')
+            print tf.get_collection('inputs')
+            im_preproc = (
+                (image - np.mean(image, axis=(1, 2, 3), keepdims=True)) / 255.0
+            )[:, 4:28, 4:28]
+            print session.run(
+                [logits, loss],
+                {
+                    images: im_preproc,
+                    labels: label
+                }
+            )
 
 
 if __name__ == "__main__":
