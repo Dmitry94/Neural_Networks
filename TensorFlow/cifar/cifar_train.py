@@ -57,8 +57,9 @@ def train(app_args):
         tf.add_to_collection("logits", logits)
 
         # Calculate loss.
-        tf.losses.sparse_softmax_cross_entropy(labels, logits)
-        loss = tf.losses.get_total_loss()
+        cross_entripy_loss = tf.losses.sparse_softmax_cross_entropy(
+                                labels, logits)
+        loss = cross_entripy_loss + tf.losses.get_total_loss()
         tf.add_to_collection("loss", loss)
 
         # Set learning rate and optimizer

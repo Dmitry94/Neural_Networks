@@ -95,7 +95,7 @@ if __name__ == "__main__":
 
     parser.add_argument("--checkpoint-dir",
                         help="Path to the directory, where checkpoint stores",
-                        default="cifar10_train")
+                        default="cifar10_train_miranda")
 
     parser.add_argument("--batch-size", type=int,
                         help="Number of images to process in a batch",
