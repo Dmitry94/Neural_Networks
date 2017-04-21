@@ -46,7 +46,8 @@ def eval_once(app_args):
         images, labels = manager.dequeue()
 
     logits = tf.get_collection("logits")[0]
-    loss = tf.get_collection("loss")[0]
+    cross_entripy_loss = tf.losses.sparse_softmax_cross_entropy(
+                            labels, logits)
     top_k_op = tf.nn.in_top_k(logits, labels, 1)
 
     threads = manager.start_threads(sess)
@@ -57,10 +58,9 @@ def eval_once(app_args):
     loss_mean = 0
     while step < num_iter and not coord.should_stop():
         im_feed, l_feed, sz = sess.run([images, labels, manager.size()])
-        loss_val, predictions = sess.run(
-            [loss, top_k_op],
+        predictions, loss_val = sess.run(
+            [top_k_op, cross_entripy_loss],
             feed_dict={"images:0": im_feed, "labels:0": l_feed})
-
         loss_mean += loss_val
         true_count += np.sum(predictions)
         step += 1
@@ -95,7 +95,7 @@ if __name__ == "__main__":
 
     parser.add_argument("--checkpoint-dir",
                         help="Path to the directory, where checkpoint stores",
-                        default="cifar10_train_miranda")
+                        default="cifar10_train")
 
     parser.add_argument("--batch-size", type=int,
                         help="Number of images to process in a batch",

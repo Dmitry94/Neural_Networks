@@ -57,10 +57,7 @@ def train(app_args):
         tf.add_to_collection("logits", logits)
 
         # Calculate loss.
-        cross_entripy_loss = tf.losses.sparse_softmax_cross_entropy(
-                                labels, logits)
-        loss = cross_entripy_loss + tf.losses.get_total_loss()
-        tf.add_to_collection("loss", loss)
+        loss = tf.losses.sparse_softmax_cross_entropy(labels, logits)
 
         # Set learning rate and optimizer
         global_step = tf.contrib.framework.get_or_create_global_step()
@@ -76,7 +73,7 @@ def train(app_args):
 
         # Define ops
         init_op = tf.global_variables_initializer()
-        train_op = slim.learning.create_train_op(loss, opt)
+        train_op = opt.minimize(loss, global_step)
 
         tf.summary.scalar("Learning_rate", lr)
         tf.summary.scalar("Loss", loss)
