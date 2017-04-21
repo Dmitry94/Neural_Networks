@@ -33,6 +33,7 @@ def eval_once(app_args):
                 graph_path = file
     graph_path = os.path.join(app_args.checkpoint_dir, graph_path)
 
+    tf.reset_default_graph()
     config = tf.ConfigProto(device_count={"GPU": app_args.gpu_count})
     sess = tf.InteractiveSession(config=config)
     saver = tf.train.import_meta_graph(graph_path)
@@ -48,7 +49,7 @@ def eval_once(app_args):
         images, labels = manager.dequeue()
 
     logits = tf.get_collection("logits")[0]
-    cross_entripy_loss = tf.losses.sparse_softmax_cross_entropy(labels, logits)
+    loss = tf.get_collection(tf.GraphKeys.LOSSES)[0]
     top_k_op = tf.nn.in_top_k(logits, labels, 1)
 
     threads = manager.start_threads(sess)
@@ -59,11 +60,11 @@ def eval_once(app_args):
     loss_mean = 0
 
     while step < num_iter and not coord.should_stop():
-        im_feed, l_feed, sz = sess.run([images, labels, manager.size()])
-        plt.imshow(im_feed[0])
-        plt.show()
+        im_feed, l_feed = sess.run([images, labels])
+        # plt.imshow(im_feed[0])
+        # plt.show()
         predictions, loss_val = sess.run(
-            [top_k_op, cross_entripy_loss],
+            [top_k_op, loss],
             feed_dict={"images:0": im_feed, "labels:0": l_feed})
         loss_mean += loss_val
         true_count += np.sum(predictions)
@@ -95,7 +96,11 @@ if __name__ == "__main__":
 
     parser.add_argument("--samples-count", type=int,
                         help="Number of images to process at all",
-                        default=2)
+                        default=10000)
+
+    parser.add_argument("--batch-size", type=int,
+                        help="Number of images to process in a batch",
+                        default=128)
 
     parser.add_argument("--log-dir",
                         help="Path to the directory, where log will write",
@@ -105,17 +110,13 @@ if __name__ == "__main__":
                         help="Path to the directory, where checkpoint stores",
                         default="cifar10_train")
 
-    parser.add_argument("--batch-size", type=int,
-                        help="Number of images to process in a batch",
-                        default=2)
-
     parser.add_argument("--eval-interval", type=int,
                         help="How often to evaluate",
-                        default=2)
+                        default=0.01)
 
     parser.add_argument("--eval-once", type=bool,
                         help="Eval one time or more",
-                        default=True)
+                        default=False)
 
     parser.add_argument("--data-format",
                         help="Data format: NCHW or NHWC",

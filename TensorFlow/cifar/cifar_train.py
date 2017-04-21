@@ -92,11 +92,7 @@ def train(app_args):
             threads = manager.start_threads(session)
 
             for step in xrange(1, app_args.max_steps + 1):
-                i = session.run(images)
-                plt.imshow(i[0])
-                plt.show()
-
-                if not (step % app_args.save_summary_steps != 0):
+                if not (step % app_args.save_summary_steps == 0):
                     session.run(train_op)
                 else:
                     run_options = tf.RunOptions(
@@ -113,18 +109,18 @@ def train(app_args):
                     current_time = time.time()
                     duration = current_time - start_time
                     start_time = current_time
-
+                    loss_value = session.run(loss)
                     examples_per_sec = int(app_args.save_summary_steps *
                                            app_args.batch_size / duration)
                     sec_per_batch = float(duration /
                                           app_args.save_summary_steps)
-                    loss_value = session.run(loss)
                     print(
                         "Step = %d Loss = %f Samples per sec = %d"
                         " Sec per batch = %f" %
                         (step, loss_value, examples_per_sec, sec_per_batch))
 
-                if step % app_args.save_checkpoint_steps != 0:
+                if (step % app_args.save_checkpoint_steps == 0 or
+                        step == app_args.max_steps):
                     checkpoint_file = os.path.join(app_args.log_dir,
                                                    "model.ckpt")
                     saver.save(session, checkpoint_file, step)
@@ -146,11 +142,11 @@ if __name__ == "__main__":
 
     parser.add_argument("--max-steps", type=int,
                         help="Number of batches to run",
-                        default=1)
+                        default=100)
 
     parser.add_argument("--batch-size", type=int,
                         help="Number of images to process in a batch",
-                        default=1)
+                        default=128)
 
     parser.add_argument("--init-lr", type=float,
                         help="Start value for learning rate",
@@ -170,7 +166,7 @@ if __name__ == "__main__":
 
     parser.add_argument("--save-checkpoint-steps", type=int,
                         help="How often to save checkpoint",
-                        default=100)
+                        default=1000)
 
     parser.add_argument("--save-summary-steps", type=int,
                         help="How often to save summary",
