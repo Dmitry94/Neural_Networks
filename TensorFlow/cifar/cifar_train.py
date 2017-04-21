@@ -13,6 +13,8 @@ import cifar_input
 import tensorflow as tf
 from tensorflow.contrib import slim
 
+from matplotlib import pyplot as plt
+
 
 def get_model_params(app_args):
     """
@@ -87,8 +89,12 @@ def train(app_args):
             start_time = time.time()
             threads = manager.start_threads(session)
 
-            for step in xrange(app_args.max_steps):
-                if not (step % app_args.save_summary_steps == 0 and step > 0):
+            for step in xrange(1, app_args.max_steps + 1):
+                i = session.run(images)
+                plt.imshow(i[0])
+                plt.show()
+
+                if not (step % app_args.save_summary_steps != 0 and step > 0):
                     session.run(train_op)
                 else:
                     run_options = tf.RunOptions(
@@ -137,11 +143,11 @@ if __name__ == "__main__":
 
     parser.add_argument("--max-steps", type=int,
                         help="Number of batches to run",
-                        default=1000000)
+                        default=1)
 
     parser.add_argument("--batch-size", type=int,
                         help="Number of images to process in a batch",
-                        default=128)
+                        default=1)
 
     parser.add_argument("--init-lr", type=float,
                         help="Start value for learning rate",
@@ -161,7 +167,7 @@ if __name__ == "__main__":
 
     parser.add_argument("--save-checkpoint-steps", type=int,
                         help="How often to save checkpoint",
-                        default=1000)
+                        default=100)
 
     parser.add_argument("--save-summary-steps", type=int,
                         help="How often to save summary",

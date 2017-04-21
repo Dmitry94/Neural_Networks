@@ -54,19 +54,19 @@ class Cifar10DataManager(object):
         """
             Return next batch. Cyclic.
         """
-        selection = np.s_[self.i * self.batch_size:
-                          (self.i + 1) * self.batch_size]
         with self.lock:
+            selection = np.s_[self.i * self.batch_size:
+                              (self.i + 1) * self.batch_size]
             self.i = (self.i + 1) % self.batches_count
-
-        margin = (32 - Cifar10DataManager.IM_SIZE) / 2
-        data_batch = self.data[selection, margin:32 - margin,
-                               margin:32 - margin]
-        labels_batch = self.labels[selection]
+            margin = (32 - Cifar10DataManager.IM_SIZE) / 2
+            data_batch = self.data[selection, margin:32 - margin,
+                                   margin:32 - margin]
+            labels_batch = self.labels[selection]
 
         data_batch = data_batch.astype(np.float32)
-        data_batch -= np.mean(data_batch)
-        data_batch /= 255.0
+        for im in data_batch:
+            im -= np.mean(im)
+            im /= 255.0
         labels_batch = labels_batch.astype(np.int32)
 
         if self.data_format == "NCHW":
@@ -92,7 +92,7 @@ class Cifar10DataManager(object):
                 return
 
     def start_threads(self, session, n_threads=multiprocessing.cpu_count()):
-        for _ in range(n_threads):
+        for _ in range(1):
             thread = threading.Thread(target=self.thread_main, args=(session,))
             thread.daemon = True  # Thread will close when parent quits.
             thread.start()

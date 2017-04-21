@@ -14,6 +14,8 @@ import cifar_model
 import cifar_input
 import tensorflow as tf
 
+from matplotlib import pyplot as plt
+
 
 def eval_once(app_args):
     """
@@ -46,8 +48,7 @@ def eval_once(app_args):
         images, labels = manager.dequeue()
 
     logits = tf.get_collection("logits")[0]
-    cross_entripy_loss = tf.losses.sparse_softmax_cross_entropy(
-                            labels, logits)
+    cross_entripy_loss = tf.losses.sparse_softmax_cross_entropy(labels, logits)
     top_k_op = tf.nn.in_top_k(logits, labels, 1)
 
     threads = manager.start_threads(sess)
@@ -56,8 +57,11 @@ def eval_once(app_args):
     total_sample_count = num_iter * app_args.batch_size
     step = 0
     loss_mean = 0
+
     while step < num_iter and not coord.should_stop():
         im_feed, l_feed, sz = sess.run([images, labels, manager.size()])
+        plt.imshow(im_feed[0])
+        plt.show()
         predictions, loss_val = sess.run(
             [top_k_op, cross_entripy_loss],
             feed_dict={"images:0": im_feed, "labels:0": l_feed})
@@ -67,7 +71,7 @@ def eval_once(app_args):
 
     precision = true_count / float(total_sample_count)
     print("%s: Precision = %f, Loss = %f" % (datetime.now(), precision,
-                                             (loss_mean / num_iter)))
+                                             (loss_mean / step)))
 
     coord.request_stop()
     sess.run(manager.queue.close(cancel_pending_enqueues=True))
@@ -89,6 +93,10 @@ if __name__ == "__main__":
                         help="Path to the data directory",
                         default="../../content/ciraf/hdf5/train.hdf5")
 
+    parser.add_argument("--samples-count", type=int,
+                        help="Number of images to process at all",
+                        default=1)
+
     parser.add_argument("--log-dir",
                         help="Path to the directory, where log will write",
                         default="cifar10_eval")
@@ -99,11 +107,7 @@ if __name__ == "__main__":
 
     parser.add_argument("--batch-size", type=int,
                         help="Number of images to process in a batch",
-                        default=128)
-
-    parser.add_argument("--samples-count", type=int,
-                        help="Number of images to process at all",
-                        default=10000)
+                        default=1)
 
     parser.add_argument("--eval-interval", type=int,
                         help="How often to evaluate",
