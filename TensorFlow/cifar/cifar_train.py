@@ -128,6 +128,7 @@ def train(app_args):
                     checkpoint_file = os.path.join(app_args.log_dir,
                                                    "model.ckpt")
                     saver.save(session, checkpoint_file, step)
+                    print("Checkpoint saved")
 
             session.run(manager.queue.close(cancel_pending_enqueues=True))
             coordinator.request_stop()

@@ -53,9 +53,10 @@ def eval_once(app_args, saver):
 
     while step < num_iter and not coord.should_stop():
         im_feed, l_feed = sess.run([images, labels])
-        loss_val, loss_val2, predictions = sess.run(
-            [loss, loss2, top_k_op],
+        logits, loss_val, loss_val2, predictions = sess.run(
+            [logits, loss, loss2, top_k_op],
             feed_dict={"images:0": im_feed, "labels:0": l_feed})
+        print loss_val, loss_val2
         loss_mean += loss_val
         true_count += np.sum(predictions)
         step += 1
