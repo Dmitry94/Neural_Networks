@@ -6,14 +6,13 @@ import os
 import argparse
 import time
 import h5py
+import numpy
 
 import cifar_model
 import cifar_input
 
 import tensorflow as tf
 from tensorflow.contrib import slim
-
-from matplotlib import pyplot as plt
 
 
 def get_model_params(app_args):
@@ -78,6 +77,7 @@ def train(app_args):
         # Define ops
         init_op = tf.global_variables_initializer()
         train_op = slim.learning.create_train_op(loss, opt)
+        top_k_op = tf.nn.in_top_k(logits, labels, 1)
 
         tf.summary.scalar("Learning_rate", lr)
         tf.summary.scalar("Loss", loss)
@@ -98,8 +98,9 @@ def train(app_args):
                     run_options = tf.RunOptions(
                         trace_level=tf.RunOptions.FULL_TRACE)
                     run_metadata = tf.RunMetadata()
-                    _, loss_value, summary = session.run(
-                        [train_op, loss, summary_op], options=run_options,
+                    _, loss_value, precission, summary = session.run(
+                        [train_op, loss, top_k_op, summary_op],
+                        options=run_options,
                         run_metadata=run_metadata)
 
                     summary_writer.add_run_metadata(run_metadata,
@@ -115,9 +116,12 @@ def train(app_args):
                     sec_per_batch = float(duration /
                                           app_args.save_summary_steps)
                     print(
-                        "Step = %d Loss = %f Samples per sec = %d"
+                        "Step = %d Loss = %f Precission = %f"
+                        " Samples per sec = %d"
                         " Sec per batch = %f" %
-                        (step, loss_value, examples_per_sec, sec_per_batch))
+                        (step, loss_value,
+                         (numpy.sum(precission) / float(app_args.batch_size)),
+                         examples_per_sec, sec_per_batch))
 
                 if (step % app_args.save_checkpoint_steps == 0 or
                         step == app_args.max_steps):
@@ -142,7 +146,7 @@ if __name__ == "__main__":
 
     parser.add_argument("--max-steps", type=int,
                         help="Number of batches to run",
-                        default=100)
+                        default=1000)
 
     parser.add_argument("--batch-size", type=int,
                         help="Number of images to process in a batch",
