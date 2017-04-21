@@ -180,7 +180,7 @@ def inference(images, model_params):
             pool_strides, drop_rates[0:conv_layers_count], data_formats),
                             scope="conv_layers")
 
-        net = tf.reshape(net, [images.get_shape()[0].value, -1])
+        net = slim.flatten(net)
         net = slim.stack(net, fc_drop, zip(fc_sizes[:len(fc_sizes) - 1],
                                            drop_rates[conv_layers_count:]),
                          scope="fc_layers")

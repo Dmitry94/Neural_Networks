@@ -53,8 +53,10 @@ def train(app_args):
         model_params = get_model_params(app_args)
         with tf.device("/CPU:0"):
             images, labels = manager.dequeue()
-        images = tf.identity(images, name="images")
-        labels = tf.identity(labels, name="labels")
+        im_shape = images.get_shape().as_list()[1:4]
+        images = tf.placeholder_with_default(images, ([None] + im_shape),
+                                             name="images")
+        labels = tf.placeholder_with_default(labels, [None], name="labels")
         logits = cifar_model.inference(images, model_params)
         tf.add_to_collection("logits", logits)
 
@@ -94,7 +96,7 @@ def train(app_args):
                 plt.imshow(i[0])
                 plt.show()
 
-                if not (step % app_args.save_summary_steps != 0 and step > 0):
+                if not (step % app_args.save_summary_steps != 0):
                     session.run(train_op)
                 else:
                     run_options = tf.RunOptions(
@@ -116,12 +118,13 @@ def train(app_args):
                                            app_args.batch_size / duration)
                     sec_per_batch = float(duration /
                                           app_args.save_summary_steps)
+                    loss_value = session.run(loss)
                     print(
                         "Step = %d Loss = %f Samples per sec = %d"
                         " Sec per batch = %f" %
                         (step, loss_value, examples_per_sec, sec_per_batch))
 
-                if step % app_args.save_checkpoint_steps == 0:
+                if step % app_args.save_checkpoint_steps != 0:
                     checkpoint_file = os.path.join(app_args.log_dir,
                                                    "model.ckpt")
                     saver.save(session, checkpoint_file, step)

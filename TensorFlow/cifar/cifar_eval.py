@@ -95,7 +95,7 @@ if __name__ == "__main__":
 
     parser.add_argument("--samples-count", type=int,
                         help="Number of images to process at all",
-                        default=1)
+                        default=2)
 
     parser.add_argument("--log-dir",
                         help="Path to the directory, where log will write",
@@ -107,7 +107,7 @@ if __name__ == "__main__":
 
     parser.add_argument("--batch-size", type=int,
                         help="Number of images to process in a batch",
-                        default=1)
+                        default=2)
 
     parser.add_argument("--eval-interval", type=int,
                         help="How often to evaluate",
@@ -115,7 +115,7 @@ if __name__ == "__main__":
 
     parser.add_argument("--eval-once", type=bool,
                         help="Eval one time or more",
-                        default=False)
+                        default=True)
 
     parser.add_argument("--data-format",
                         help="Data format: NCHW or NHWC",
