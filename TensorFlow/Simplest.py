@@ -9,9 +9,15 @@ c_node1 = tf.constant(3.0)
 c_node2 = tf.constant(4.0)
 print '1: ', (c_node1, c_node2)
 
+v1 = tf.constant([[0.3, 0.5, 0.8], [0.3, 0.5, 0.9]])
+v2 = tf.reduce_sum(v1, axis=1, keep_dims=True)
+v1 = v1 / v2
+
 # Value here, because now we are running graph
 session = tf.Session()
 print '2: ', session.run(c_node1)
+
+print '2.1: ', session.run(v1)
 
 # Now we promise to give values latter
 a = tf.placeholder(tf.float32)

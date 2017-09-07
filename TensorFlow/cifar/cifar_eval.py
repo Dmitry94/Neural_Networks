@@ -34,6 +34,7 @@ def eval_once(app_args, saver):
         coord, app_args.data_format)
 
     images, labels = tf.get_collection("inputs")
+
     logits = tf.get_collection("logits")[0]
     loss = tf.get_collection(tf.GraphKeys.LOSSES)[0]
     top_k_op = tf.nn.in_top_k(logits, labels, 1)
@@ -46,9 +47,10 @@ def eval_once(app_args, saver):
 
     while step < num_iter and not coord.should_stop():
         im_feed, l_feed = manager.next_batch()
+
         loss_val, predictions = sess.run(
-            [loss, top_k_op], feed_dict={images: im_feed,
-                                         labels: l_feed})
+            [loss, top_k_op], feed_dict={"images:0": im_feed,
+                                         "labels:0": l_feed})
         loss_mean += loss_val
         true_count += np.sum(predictions)
         step += 1
