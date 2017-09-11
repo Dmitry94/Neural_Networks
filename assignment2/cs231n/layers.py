@@ -135,36 +135,25 @@ def batchnorm_forward(x, gamma, beta, bn_param):
 
     out, cache = None, None
     if mode == 'train':
-        #######################################################################
-        # TODO: Implement the training-time forward pass for batch norm.      #
-        # Use minibatch statistics to compute the mean and variance, use      #
-        # these statistics to normalize the incoming data, and scale and      #
-        # shift the normalized data using gamma and beta.                     #
-        #                                                                     #
-        # You should store the output in the variable out. Any intermediates  #
-        # that you need for the backward pass should be stored in the cache   #
-        # variable.                                                           #
-        #                                                                     #
-        # You should also use your computed sample mean and variance together #
-        # with the momentum variable to update the running mean and running   #
-        # variance, storing your result in the running_mean and running_var   #
-        # variables.                                                          #
-        #######################################################################
-        pass
-        #######################################################################
-        #                           END OF YOUR CODE                          #
-        #######################################################################
+        sample_mean = np.mean(x, axis=0)
+        x_dif = x - sample_mean
+        x_dif_sq = x_dif ** 2
+        sample_var = np.sum(x_dif_sq, axis=0) / x.shape[0]
+
+        y_sqrt = np.sqrt(sample_var + eps)
+        y_denom = 1.0 / y_sqrt
+        y = x_dif * y_denom
+        y_gamma = gamma * y
+        out = y_gamma + beta
+
+        running_mean = momentum * running_mean + (1.0 - momentum) * sample_mean
+        running_var = momentum * running_var + (1.0 - momentum) * sample_var
+
+        cache = (y, gamma, x_dif, y_denom, y_sqrt, sample_var, eps)
     elif mode == 'test':
-        #######################################################################
-        # TODO: Implement the test-time forward pass for batch normalization. #
-        # Use the running mean and variance to normalize the incoming data,   #
-        # then scale and shift the normalized data using gamma and beta.      #
-        # Store the result in the out variable.                               #
-        #######################################################################
-        pass
-        #######################################################################
-        #                          END OF YOUR CODE                           #
-        #######################################################################
+        new_x = (x - running_mean) / np.sqrt(running_var + eps)
+        out = gamma * new_x + beta
+        cache = (gamma, beta)
     else:
         raise ValueError('Invalid forward batchnorm mode "%s"' % mode)
 
@@ -192,15 +181,25 @@ def batchnorm_backward(dout, cache):
     - dgamma: Gradient with respect to scale parameter gamma, of shape (D,)
     - dbeta: Gradient with respect to shift parameter beta, of shape (D,)
     """
-    dx, dgamma, dbeta = None, None, None
-    ###########################################################################
-    # TODO: Implement the backward pass for batch normalization. Store the    #
-    # results in the dx, dgamma, and dbeta variables.                         #
-    ###########################################################################
-    pass
-    ###########################################################################
-    #                             END OF YOUR CODE                            #
-    ###########################################################################
+    (y, gamma, x_dif, y_denom, y_sqrt, var, eps) = cache
+    N, D = dout.shape
+
+    dbeta = np.sum(dout, axis=0)
+    dgamma = np.sum(dout * y, 0)
+
+    dout = dout * gamma
+    dxdif = dout * y_denom
+    dout = np.sum(dout * x_dif, axis=0)
+
+    dout = -1. / (y_sqrt ** 2) * dout
+    dout = 0.5 / np.sqrt(var + eps) * dout
+    dout = 1. / N * np.ones((N, D)) * dout
+    dout = 2 * x_dif * dout
+
+    dx = dout + dxdif
+    dout = -1.0 * np.sum(dout + dxdif, axis=0)
+    dout = 1. / N * np.ones((N, D)) * dout
+    dx = dx + dout
 
     return dx, dgamma, dbeta
 
