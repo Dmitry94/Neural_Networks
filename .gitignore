@@ -91,3 +91,4 @@ ENV/
 TensorFlow/cifar/cifar10_*
 
 content/
+.idea
