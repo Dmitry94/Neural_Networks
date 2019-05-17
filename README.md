@@ -11,7 +11,7 @@ There were implemented the following models:
     * Softmax model
     * Neural Net, simple version.
 
-    All code is available [here](https://github.com/Dmitry94/Neural_Networks/blob/master/hand-implemented-models/README.md).
+    All code is available [here](https://github.com/Dmitry94/cs231-practice/tree/master/hand-implemented-models).
 
 2. *Assigments solutions.* These solutions were done at 2019. Solutions are
 connected to corresponding cs-231 assignments. They can be found at folders with
