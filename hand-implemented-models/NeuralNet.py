@@ -1,66 +1,81 @@
-"""
-    Neural network class with backprop.
-"""
+# -*- coding: UTF-8 -*-
+
+"""Neural network implementation."""
 
 import numpy as np
+import tqdm
 
-class BNN(object):
-    """
-        Neural network class with backprop.
-    """
-    def __init__(self, hidden_layers_sizes, learning_rate=1e-0, reg_lambda=1e-3,
-                 dropout_p=0.5, adam_eps=1e-8, adam_b1=0.99, adam_b2=0.999):
+
+class NeuralNet(object):
+    """Neural network class."""
+
+    def __init__(self, hidden_layers_sizes, learning_rate=1e-0,
+                 reg_lambda=1e-3, bsize=1024):
+        """Perform neural net start init."""
         self.hl_sizes = hidden_layers_sizes
         self.learning_rate = learning_rate
         self.reg_lambda = reg_lambda
         self.weights = np.array([])
         self.biases = np.array([])
+        self.bsize = bsize
 
-        self.dropout_p = dropout_p
-
-        self.adam_eps = adam_eps
-        self.adam_b1 = adam_b1
-        self.adam_b2 = adam_b2
-
-    def train(self, data, labels, print_loss=False, max_iters=10000):
+    def train(self, data, labels, log=True, max_iters=10000):
         """
-            Train net.
+        Train model.
 
-            Parameters:
-            -------
-            data : array, where each row - sample
-            labels : array, where each row - label
+        Args:
+            data: np.array
+                input data array
+            labels: np.array
+                labels for input data
+            log: bool
+                If True, then print progress
+            max_iters: int
+                max count of train process iterations
+
         """
-        # Init
-        num_examples = data.shape[0]
+        if log:
+            iters_range = tqdm.trange(max_iters)
+            iters_range.set_description('Neural net training...')
+        else:
+            iters_range = range(max_iters)
+
         sensors_count = data.shape[1]
         classes_count = len(np.unique(labels))
         self._init_weights(sensors_count, classes_count)
 
-        for i in xrange(max_iters):
+        cur_batch_size = min(self.bsize, data.shape[0])
+        for i in iters_range:
             # Forward pass
-            layers_outs = self._forward_pass(data)
+            rand_idxs = [np.random.randint(0, data.shape[0])
+                         for _ in range(cur_batch_size)]
+            data_batch = data[rand_idxs]
+            labels_batch = labels[rand_idxs]
+            layers_outs = self._forward_pass(data_batch)
             probs = layers_outs[-1]
 
             # Calculate and print loss
-            if print_loss and i % 1000 == 0:
-                corect_logprobs = -np.log(probs[range(num_examples), labels])
-                data_loss = np.sum(corect_logprobs) / num_examples
+            if log and i % 100 == 0:
+                corect_logprobs = -np.log(probs[range(cur_batch_size),
+                                                labels_batch])
+                data_loss = np.sum(corect_logprobs) / cur_batch_size
 
                 reg_loss = 0.0
-                for j in xrange(len(self.weights)):
-                    reg_loss += 0.5 * self.reg_lambda * np.sum(self.weights[j] ** 2)
+                for j in range(len(self.weights)):
+                    reg_loss += 0.5 * self.reg_lambda * np.sum(
+                        self.weights[j] ** 2)
                 loss = data_loss + reg_loss
-                print "On iteration %d: loss is %f" % (i, loss)
+                iters_range.set_postfix(loss=loss)
 
             # Compute the gradient on probs, out layer
             dlast = probs
-            dlast[range(num_examples), labels] -= 1
-            dlast /= num_examples
+            dlast[range(cur_batch_size), labels_batch] -= 1
+            dlast /= cur_batch_size
 
             # Backprop on hidden layers
-            for j in xrange(len(self.weights) - 1, 0, -1):
-                cur_dw = np.dot(layers_outs[j].T, dlast) + self.reg_lambda * self.weights[j]
+            for j in range(len(self.weights) - 1, 0, -1):
+                cur_dw = (np.dot(layers_outs[j].T, dlast) +
+                          self.reg_lambda * self.weights[j])
                 cur_db = np.sum(dlast, axis=0, keepdims=True)
                 dlast = np.dot(dlast, self.weights[j].T)
                 dlast[layers_outs[j] <= 0] = 0
@@ -69,21 +84,23 @@ class BNN(object):
                 self.biases[j] += -self.learning_rate * cur_db
 
             # Backprop on IN-layer
-            in_dw = np.dot(data.T, dlast) + self.reg_lambda * self.weights[0]
+            in_dw = (np.dot(data_batch.T, dlast) +
+                     self.reg_lambda * self.weights[0])
             in_db = np.sum(dlast, axis=0, keepdims=True)
             self.weights[0] += -self.learning_rate * in_dw
             self.biases[0] += -self.learning_rate * in_db
 
     def predict(self, data):
         """
-            Inference net for predicting label for each data row.
+        Predict labels for specified data.
 
-            Parameters:
-            -------
-            data : array, where each row is a sample
+        Args:
+            data: np.array
+                input data
 
-            Returns:
-            array of labels
+        Returns:
+            np.array: predicted labels for data
+
         """
         layers_outs = self._forward_pass(data)
         probs = layers_outs[-1]
@@ -92,6 +109,7 @@ class BNN(object):
         return labels
 
     def _init_weights(self, sensors_count, classes_count):
+        """Perform weights init."""
         layers_count = len(self.hl_sizes)
         k = 0.01
 
@@ -102,7 +120,7 @@ class BNN(object):
         self.biases = [b_start]
 
         # Hidden layers weights
-        for i in xrange(1, layers_count):
+        for i in range(1, layers_count):
             w_cur = k * np.random.randn(self.hl_sizes[i - 1], self.hl_sizes[i])
             b_cur = np.zeros((1, self.hl_sizes[i]))
             self.weights.append(w_cur)
@@ -115,21 +133,15 @@ class BNN(object):
         self.biases.append(b_end)
 
     def _forward_pass(self, data):
+        """Perform forward pass."""
         # Input
         outs = [data]
+        cur_out = outs[-1]
 
         # Out from hidden layers
-        for i in xrange(len(self.weights) - 1):
-            # Dropconnect (WORSE)
-            # cur_mask = (np.random.rand(*self.weights[i].shape) < self.dropout_p) / self.dropout_p
-            # cur_weights = self.weights[i] * cur_mask
-
-            cur_out = np.maximum(0, np.dot(outs[i], self.weights[i]) + self.biases[i])
-
-            # # Dropout (WORSE!)
-            # cur_mask = (np.random.rand(*cur_out.shape) < self.dropout_p) / self.dropout_p
-            # cur_out *= cur_mask
-
+        for i in range(len(self.weights) - 1):
+            cur_out = np.maximum(0, np.dot(outs[i], self.weights[i]) +
+                                 self.biases[i])
             outs.append(cur_out)
 
         # Out from out layer

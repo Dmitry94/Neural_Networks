@@ -3,7 +3,7 @@
 """Nearest Neighbor Classifier demonstration."""
 
 import numpy as np
-from console_progressbar import ProgressBar
+import tqdm
 
 
 class NNClassifier(object):
@@ -52,11 +52,12 @@ class NNClassifier(object):
         predictions = np.zeros(samples_count, dtype=self.labels.dtype)
 
         if log:
-            print('Start prediction...')
-        pb = ProgressBar(total=samples_count,
-                         decimals=1, length=50, fill='X', zfill='-')
+            iters_range = tqdm.trange(samples_count)
+            iters_range.set_description('Nearest neighbor predicting...')
+        else:
+            iters_range = range(samples_count)
 
-        for i in range(samples_count):
+        for i in iters_range:
             # calc distances
             if metric == 'L1':
                 distances = np.sum(np.abs(self.data - data[i, :]), axis=1)
@@ -74,8 +75,5 @@ class NNClassifier(object):
             label = np.argmax(counts)
 
             predictions[i] = unique[label]
-
-            if log:
-                pb.print_progress_bar(i + 1)
 
         return predictions
