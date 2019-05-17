@@ -1,7 +1,18 @@
-# Neural Networks
-Practical applications for Stanford's course: [CS231n](http://cs231n.github.io/)
+# CS-231 practice repository
 
-## Contains:
-* Nearest Neighbor Classifier. [Results](https://github.com/Dmitry94/Neural_Networks/blob/master/NN/NN.md)
-* Linear Classificator: SVM. [Results](https://github.com/Dmitry94/Neural_Networks/blob/master/SVM/LinearSVM.md)
-* Linear Classificator: Softmax
+There are solutions of [CS-231](http://cs231n.stanford.edu/) course.
+
+There are two types of solutions for this course:
+1. *Old solutions.* They were done at 2016, when there were no assignments.
+There were implemented the following models:
+
+    * Nearest neighbor model
+    * SVM model
+    * Softmax model
+    * Neural Net, simple version.
+
+    All code is available [here](https://github.com/Dmitry94/Neural_Networks/blob/master/hand-implemented-models/README.md).
+
+2. *Assigments solutions.* These solutions were done at 2019. Solutions are
+connected to corresponding cs-231 assignments. They can be found at folders with
+corresponding names.
